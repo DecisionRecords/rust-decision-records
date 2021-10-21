@@ -5,6 +5,7 @@ use std::env;
 use std::io;
 
 mod init;
+mod decision_record;
 
 fn main() -> Result<(), io::Error> {
   let app = App::new("decision-record")
@@ -86,6 +87,7 @@ fn main() -> Result<(), io::Error> {
             .alias("supercede...")
             .takes_value(true)
             .value_name("record")
+            .multiple(true)
         )
         .arg(
           Arg::with_name("deprecate")
@@ -95,6 +97,7 @@ fn main() -> Result<(), io::Error> {
             .short("d")
             .takes_value(true)
             .value_name("record")
+            .multiple(true)
         )
         .arg(
           Arg::with_name("amend")
@@ -104,6 +107,7 @@ fn main() -> Result<(), io::Error> {
             .short("a")
             .takes_value(true)
             .value_name("record")
+            .multiple(true)
         )
         .arg(
           Arg::with_name("link")
@@ -114,6 +118,7 @@ fn main() -> Result<(), io::Error> {
             .short("l")
             .takes_value(true)
             .value_name("record")
+            .multiple(true)
         )
         .arg(
           Arg::with_name("proposed")
@@ -134,6 +139,122 @@ fn main() -> Result<(), io::Error> {
             .conflicts_with("proposed")
         )
     )
+    // TODO: Add the following
+    //   program
+    //   .command(
+    //     'approve',
+    //     "Change the status of a proposed Decision Record to approved."
+    //   )
+    //   .argument(
+    //     '<record...>',
+    //     "The record or records to change the status to approved",
+    //     {
+    //       validator: program.ARRAY | program.NUMBER
+    //     }
+    //   )
+    //   .action(({ args, options }) => { set_approved_records(args, options) });
+    
+    // program
+    //   .command(
+    //     'proposed',
+    //     "Change the status of a proposed Decision Record to proposed."
+    //   )
+    //   .argument(
+    //     '<record...>',
+    //     "The record or records to change the status to proposed",
+    //     {
+    //       validator: program.ARRAY | program.NUMBER
+    //     }
+    //   )
+    //   .action(({ args, options }) => { set_proposed_records(args, options) });
+    
+    // program
+    //   .command(
+    //     'link',
+    //     "Link two Decision Records."
+    //   )
+    //   .argument(
+    //     '<from_record>',
+    //     "Link from a record",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .argument(
+    //     '<to_record>',
+    //     "Link to a record",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .argument(
+    //     '[reason...]',
+    //     "The optional reason to link the two records."
+    //   )
+    //   .action(({ args, options }) => { link_records(args, options) });
+    
+    // program
+    //   .command(
+    //     'deprecate',
+    //     "Change the status of a Decision Record to deprecated."
+    //   )
+    //   .argument(
+    //     '<deprecate_record>',
+    //     "Deprecate this record number",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .argument(
+    //     '<replace_record>',
+    //     "Identify this record as the record which deprecates the old record",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .action(({ args, options }) => { deprecate_record(args, options) });
+    
+    // program
+    //   .command(
+    //     'amend',
+    //     "Amend a Decision Record with an additional Decision Record."
+    //   )
+    //   .argument(
+    //     '<original_record>',
+    //     "Amend this Decision Record.",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .argument(
+    //     '<additional_record>',
+    //     "Identify this record as the Decision Record which amends the previous one.",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .action(({ args, options }) => { amend_record(args, options) });
+    
+    // program
+    //   .command(
+    //     'supersede',
+    //     "Change the status of a Decision Record to superseded."
+    //   )
+    //   .argument(
+    //     '<supersede_record>',
+    //     "Supersede this record number",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .argument(
+    //     '<replace_record>',
+    //     "Identify this record as the record which supersedes the old record",
+    //     {
+    //       validator: program.NUMBER
+    //     }
+    //   )
+    //   .action(({ args, options }) => { supersede_record(args, options) });
     .get_matches();
 
   match app.subcommand() {
@@ -175,7 +296,75 @@ fn main() -> Result<(), io::Error> {
         force
       );
     }
+    ("new", Some(submatch)) => {
+      let title = submatch.value_of("title").unwrap_or("NO_TITLE_DEFILED").to_string();
 
+      let mut supersede: String = "".to_owned();
+      if submatch.is_present("supersede") {
+        let mut supersede_items = submatch.values_of("supersede").unwrap();
+        while let Some(ref mut supersede_item) = supersede_items.next() {
+          if supersede.len() > 0 {
+            supersede.push_str(",");
+          }
+          supersede.push_str(&supersede_item.to_string());
+        }
+      }
+      
+      
+      let mut deprecate: String = "".to_owned();
+      if submatch.is_present("deprecate") {
+        let mut deprecate_items = submatch.values_of("deprecate").unwrap();
+        while let Some(ref mut deprecate_item) = deprecate_items.next() {
+          if deprecate.len() > 0 {
+            deprecate.push_str(",");
+          }
+          deprecate.push_str(&deprecate_item.to_string())
+        }
+      }
+      
+      let mut amend: String = "".to_owned();
+      if submatch.is_present("amend") {
+        let mut amend_items = submatch.values_of("amend").unwrap();
+        while let Some(ref mut amend_item) = amend_items.next() {
+          if amend.len() > 0 {
+            amend.push_str(",");
+          }
+          amend.push_str(&amend_item.to_string())
+        }
+      }
+      
+      let mut link: String = "".to_owned();
+      if submatch.is_present("link") {
+        let mut link_items = submatch.values_of("link").unwrap();
+        while let Some(ref mut link_item) = link_items.next() {
+          if link.len() > 0 {
+            link.push_str(",");
+          }
+          link.push_str(&link_item.to_string())
+        }
+      }
+      
+      let mut proposed = false;
+      if submatch.is_present("proposed") {
+        proposed = true;
+      }
+      
+      let mut approved = false;
+      if submatch.is_present("approved") {
+        approved = true;
+      }
+
+      decision_record::new_record(
+        title,
+        supersede,
+        deprecate,
+        amend,
+        link,
+        proposed,
+        approved
+      );
+    }
+    // TODO: Parse "approve", "proposed", "link", "deprecate", "amend" and "supersede"
     _ => println!("decision-record command not recognised. Please call --help for options.")
   }
   Ok(())
