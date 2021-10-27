@@ -4,11 +4,11 @@ use clap::{App, Arg};
 use std::env;
 use std::io;
 
-mod init;
 mod decision_record;
+mod init;
 
 fn main() -> Result<(), io::Error> {
-  let app = App::new("decision-record")
+    let app = App::new("decision-record")
     .version("0.1.0")
     .author("Jon Spriggs <jon@sprig.gs>")
     .about("Making Decision Records easier")
@@ -18,7 +18,7 @@ fn main() -> Result<(), io::Error> {
         .arg(
           Arg::with_name("doc_path")
             .help("The directory to create your decision records in.")
-            .default_value(".")
+            .default_value("")
             .takes_value(true)
             .empty_values(true)
             .index(1),
@@ -46,7 +46,7 @@ fn main() -> Result<(), io::Error> {
         )
         .arg(
           Arg::with_name("template_directory")
-            .help("The template directory to use. [default: PATH/.templates/]")
+            .help("The template directory to use. [default: DOC_PATH/.template/]")
             .long("template-directory")
             .short("d"),
         )
@@ -75,7 +75,7 @@ fn main() -> Result<(), io::Error> {
             .help("The title of the new record")
             .takes_value(true)
             .required(true)
-            .index(1)
+            .multiple(true)
         )
         .arg(
           Arg::with_name("supersede")
@@ -139,233 +139,273 @@ fn main() -> Result<(), io::Error> {
             .conflicts_with("proposed")
         )
     )
-    // TODO: Add the following
-    //   program
-    //   .command(
-    //     'approve',
-    //     "Change the status of a proposed Decision Record to approved."
-    //   )
-    //   .argument(
-    //     '<record...>',
-    //     "The record or records to change the status to approved",
-    //     {
-    //       validator: program.ARRAY | program.NUMBER
-    //     }
-    //   )
-    //   .action(({ args, options }) => { set_approved_records(args, options) });
-    
-    // program
-    //   .command(
-    //     'proposed',
-    //     "Change the status of a proposed Decision Record to proposed."
-    //   )
-    //   .argument(
-    //     '<record...>',
-    //     "The record or records to change the status to proposed",
-    //     {
-    //       validator: program.ARRAY | program.NUMBER
-    //     }
-    //   )
-    //   .action(({ args, options }) => { set_proposed_records(args, options) });
-    
-    // program
-    //   .command(
-    //     'link',
-    //     "Link two Decision Records."
-    //   )
-    //   .argument(
-    //     '<from_record>',
-    //     "Link from a record",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .argument(
-    //     '<to_record>',
-    //     "Link to a record",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .argument(
-    //     '[reason...]',
-    //     "The optional reason to link the two records."
-    //   )
-    //   .action(({ args, options }) => { link_records(args, options) });
-    
-    // program
-    //   .command(
-    //     'deprecate',
-    //     "Change the status of a Decision Record to deprecated."
-    //   )
-    //   .argument(
-    //     '<deprecate_record>',
-    //     "Deprecate this record number",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .argument(
-    //     '<replace_record>',
-    //     "Identify this record as the record which deprecates the old record",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .action(({ args, options }) => { deprecate_record(args, options) });
-    
-    // program
-    //   .command(
-    //     'amend',
-    //     "Amend a Decision Record with an additional Decision Record."
-    //   )
-    //   .argument(
-    //     '<original_record>',
-    //     "Amend this Decision Record.",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .argument(
-    //     '<additional_record>',
-    //     "Identify this record as the Decision Record which amends the previous one.",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .action(({ args, options }) => { amend_record(args, options) });
-    
-    // program
-    //   .command(
-    //     'supersede',
-    //     "Change the status of a Decision Record to superseded."
-    //   )
-    //   .argument(
-    //     '<supersede_record>',
-    //     "Supersede this record number",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .argument(
-    //     '<replace_record>',
-    //     "Identify this record as the record which supersedes the old record",
-    //     {
-    //       validator: program.NUMBER
-    //     }
-    //   )
-    //   .action(({ args, options }) => { supersede_record(args, options) });
+    .subcommand(
+      App::new("approve")
+        .about("Change the status of a proposed Decision Record to approved.")
+        .visible_alias("accept")
+        .arg(
+          Arg::with_name("record")
+            .help("The record or records to change the status to approved")
+            .takes_value(true)
+            .required(true)
+            .multiple(true)
+        )
+    )
+    .subcommand(
+      App::new("proposed")
+        .about("Change the status of an approved Decision Record back to proposed.")
+        .arg(
+          Arg::with_name("record")
+            .help("The record or records to change the status to proposed")
+            .takes_value(true)
+            .required(true)
+            .multiple(true)
+        )
+    )
+    .subcommand(
+      App::new("link")
+        .about("Link two decision records.")
+        .arg(
+          Arg::with_name("from")
+            .help("Link from a record")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(
+          Arg::with_name("to")
+            .help("Link to a record")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(
+          Arg::with_name("reason")
+            .help("The reason to link the two records")
+            .takes_value(true)
+            .multiple(true)
+        )
+    )
+    .subcommand(
+      App::new("deprecate")
+        .about("Change the status of a Decision Record to deprecated.")
+        .arg(
+          Arg::with_name("from")
+            .help("Link from a record")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(
+          Arg::with_name("to")
+            .help("Link to a record")
+            .takes_value(true)
+            .required(true)
+        )
+    )
+    .subcommand(
+      App::new("amend")
+        .about("Amend a Decision Record with an additional Decision Record.")
+        .arg(
+          Arg::with_name("from")
+            .help("Link from a record")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(
+          Arg::with_name("to")
+            .help("Link to a record")
+            .takes_value(true)
+            .required(true)
+        )
+    )
+    .subcommand(
+      App::new("supersede")
+        .about("Change the status of a Decision Record to superseded.")
+        .alias("supercede")
+        .arg(
+          Arg::with_name("from")
+            .help("Link from a record")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(
+          Arg::with_name("to")
+            .help("Link to a record")
+            .takes_value(true)
+            .required(true)
+        )
+    )
     .get_matches();
 
-  match app.subcommand() {
-    ("init", Some(submatch)) => {
-      let root_dir = env::current_dir()?;
-      let mut doc_path = env::current_dir()?;
-      if submatch.value_of("doc_path").unwrap_or_default() != "." {
-        doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
-      }
-      let template_file = submatch.value_of("template_file").unwrap_or_default();
-      let format = submatch.value_of("format").unwrap_or_default();
-      let language = submatch.value_of("language").unwrap_or_default();
+    match app.subcommand() {
+        ("init", Some(submatch)) => {
+            let root_dir = env::current_dir()?;
+            let mut doc_path = root_dir.join("doc").join("decision_records");
+            if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
+                doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
+            }
+            let template_file = submatch.value_of("template_file").unwrap_or_default();
+            let format = submatch.value_of("format").unwrap_or_default();
+            let language = submatch.value_of("language").unwrap_or_default();
 
-      let template_directory = doc_path.join(submatch.value_of("template_directory").unwrap_or(".templates"));
-      
-      let mut adr_format = false;
-      if submatch.is_present("adr_format") {
-        adr_format = true;
-      }
-      
-      let mut default_proposed = false;
-      if submatch.is_present("default_proposed") {
-        default_proposed = true;
-      }
-      
-      let mut force = false;
-      if submatch.is_present("force") {
-        force = true;
-      }
+            let template_directory = doc_path.join(
+                submatch
+                    .value_of("template_directory")
+                    .unwrap_or(".template"),
+            );
 
-      init::init(
-        doc_path,
-        template_file,
-        format,
-        language,
-        template_directory,
-        adr_format,
-        default_proposed,
-        force
-      );
+            let mut adr_format = false;
+            if submatch.is_present("adr_format") {
+                adr_format = true;
+            }
+
+            let mut default_proposed = false;
+            if submatch.is_present("default_proposed") {
+                default_proposed = true;
+            }
+
+            let mut force = false;
+            if submatch.is_present("force") {
+                force = true;
+            }
+
+            init::init(
+                doc_path,
+                template_file,
+                format,
+                language,
+                template_directory,
+                adr_format,
+                default_proposed,
+                force,
+            );
+        }
+        ("new", Some(submatch)) => {
+            let mut title: String = "".to_owned();
+            if submatch.is_present("title") {
+                let title_items = submatch.values_of("title").unwrap();
+                for ref mut title_item in title_items {
+                    if !title.is_empty() {
+                        title.push(' ');
+                    }
+                    title.push_str(&title_item.to_string());
+                }
+            }
+
+            let mut supersede: String = "".to_owned();
+            if submatch.is_present("supersede") {
+                let supersede_items = submatch.values_of("supersede").unwrap();
+                for ref mut supersede_item in supersede_items {
+                    if !supersede.is_empty() {
+                        supersede.push(',');
+                    }
+                    supersede.push_str(&supersede_item.to_string());
+                }
+            }
+
+            let mut deprecate: String = "".to_owned();
+            if submatch.is_present("deprecate") {
+                let deprecate_items = submatch.values_of("deprecate").unwrap();
+                for ref mut deprecate_item in deprecate_items {
+                    if !deprecate.is_empty() {
+                        deprecate.push(',');
+                    }
+                    deprecate.push_str(&deprecate_item.to_string())
+                }
+            }
+
+            let mut amend: String = "".to_owned();
+            if submatch.is_present("amend") {
+                let amend_items = submatch.values_of("amend").unwrap();
+                for ref mut amend_item in amend_items {
+                    if !amend.is_empty() {
+                        amend.push(',');
+                    }
+                    amend.push_str(&amend_item.to_string())
+                }
+            }
+
+            let mut link: String = "".to_owned();
+            if submatch.is_present("link") {
+                let link_items = submatch.values_of("link").unwrap();
+                for ref mut link_item in link_items {
+                    if !link.is_empty() {
+                        link.push(',');
+                    }
+                    link.push_str(&link_item.to_string())
+                }
+            }
+
+            let mut proposed = false;
+            if submatch.is_present("proposed") {
+                proposed = true;
+            }
+
+            let mut approved = false;
+            if submatch.is_present("approved") {
+                approved = true;
+            }
+
+            decision_record::new_record(
+                title, supersede, deprecate, amend, link, proposed, approved,
+            );
+        }
+        ("approve", Some(submatch)) => {
+            let mut records: String = "".to_owned();
+            if submatch.is_present("record") {
+                let record_items = submatch.values_of("record").unwrap();
+                for ref mut record_item in record_items {
+                    if !records.is_empty() {
+                        records.push(',');
+                    }
+                    records.push_str(&record_item.to_string());
+                }
+            }
+            decision_record::approve(records);
+        }
+        ("proposed", Some(submatch)) => {
+            let mut records: String = "".to_owned();
+            if submatch.is_present("record") {
+                let record_items = submatch.values_of("record").unwrap();
+                for ref mut record_item in record_items {
+                    if !records.is_empty() {
+                        records.push(',');
+                    }
+                    records.push_str(&record_item.to_string());
+                }
+            }
+            decision_record::proposed(records);
+        }
+        ("link", Some(submatch)) => {
+            let from_record: String = submatch.value_of("from").unwrap().to_string();
+            let to_record: String = submatch.value_of("to").unwrap().to_string();
+
+            let mut reason: String = "".to_owned();
+            if submatch.is_present("reason") {
+                let reason_items = submatch.values_of("reason").unwrap();
+                for ref mut reason_item in reason_items {
+                    if !reason.is_empty() {
+                        reason.push(' ');
+                    }
+                    reason.push_str(&reason_item.to_string());
+                }
+            }
+            decision_record::link(from_record, to_record, reason);
+        }
+        ("deprecate", Some(submatch)) => {
+            let from_record: String = submatch.value_of("from").unwrap().to_string();
+            let to_record: String = submatch.value_of("to").unwrap().to_string();
+            decision_record::deprecate(from_record, to_record);
+        }
+        ("amend", Some(submatch)) => {
+            let from_record: String = submatch.value_of("from").unwrap().to_string();
+            let to_record: String = submatch.value_of("to").unwrap().to_string();
+            decision_record::amend(from_record, to_record);
+        }
+        ("supersede", Some(submatch)) => {
+            let from_record: String = submatch.value_of("from").unwrap().to_string();
+            let to_record: String = submatch.value_of("to").unwrap().to_string();
+            decision_record::supersede(from_record, to_record);
+        }
+        _ => println!("decision-record command not recognised. Please call --help for options."),
     }
-    ("new", Some(submatch)) => {
-      let title = submatch.value_of("title").unwrap_or("NO_TITLE_DEFILED").to_string();
-
-      let mut supersede: String = "".to_owned();
-      if submatch.is_present("supersede") {
-        let mut supersede_items = submatch.values_of("supersede").unwrap();
-        while let Some(ref mut supersede_item) = supersede_items.next() {
-          if supersede.len() > 0 {
-            supersede.push_str(",");
-          }
-          supersede.push_str(&supersede_item.to_string());
-        }
-      }
-      
-      
-      let mut deprecate: String = "".to_owned();
-      if submatch.is_present("deprecate") {
-        let mut deprecate_items = submatch.values_of("deprecate").unwrap();
-        while let Some(ref mut deprecate_item) = deprecate_items.next() {
-          if deprecate.len() > 0 {
-            deprecate.push_str(",");
-          }
-          deprecate.push_str(&deprecate_item.to_string())
-        }
-      }
-      
-      let mut amend: String = "".to_owned();
-      if submatch.is_present("amend") {
-        let mut amend_items = submatch.values_of("amend").unwrap();
-        while let Some(ref mut amend_item) = amend_items.next() {
-          if amend.len() > 0 {
-            amend.push_str(",");
-          }
-          amend.push_str(&amend_item.to_string())
-        }
-      }
-      
-      let mut link: String = "".to_owned();
-      if submatch.is_present("link") {
-        let mut link_items = submatch.values_of("link").unwrap();
-        while let Some(ref mut link_item) = link_items.next() {
-          if link.len() > 0 {
-            link.push_str(",");
-          }
-          link.push_str(&link_item.to_string())
-        }
-      }
-      
-      let mut proposed = false;
-      if submatch.is_present("proposed") {
-        proposed = true;
-      }
-      
-      let mut approved = false;
-      if submatch.is_present("approved") {
-        approved = true;
-      }
-
-      decision_record::new_record(
-        title,
-        supersede,
-        deprecate,
-        amend,
-        link,
-        proposed,
-        approved
-      );
-    }
-    // TODO: Parse "approve", "proposed", "link", "deprecate", "amend" and "supersede"
-    _ => println!("decision-record command not recognised. Please call --help for options.")
-  }
-  Ok(())
+    Ok(())
 }
