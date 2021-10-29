@@ -6,6 +6,7 @@ use std::io;
 
 mod decision_record;
 mod init;
+mod config;
 
 fn main() -> Result<(), io::Error> {
     let app = App::new("decision-record")
@@ -345,7 +346,7 @@ fn main() -> Result<(), io::Error> {
             }
 
             decision_record::new_record(
-                title, supersede, deprecate, amend, link, proposed, approved,
+                title, supersede, deprecate, amend, link, proposed, approved, config::load_config()
             );
         }
         ("approve", Some(submatch)) => {

@@ -6,6 +6,7 @@ pub fn new_record(
     link: String,
     proposed: bool,
     approved: bool,
+    config: ()
 ) {
     println!("title: {}", title);
     println!("supersede: {}", supersede);
@@ -14,6 +15,7 @@ pub fn new_record(
     println!("link: {}", link);
     println!("proposed: {}", proposed);
     println!("approved: {}", approved);
+    println!("config: {:?}", config);
 }
 
 pub fn approve(records: String) {
