@@ -1,12 +1,17 @@
-extern crate clap;
-use clap::{App, Arg};
-
 use std::env;
 use std::io;
+use std::path::Path;
 
+extern crate pathdiff;
+extern crate clap;
+
+use pathdiff::diff_paths;
+use clap::{App, Arg};
+
+
+mod config;
 mod decision_record;
 mod init;
-mod config;
 
 fn main() -> Result<(), io::Error> {
     let app = App::new("decision-record")
@@ -243,15 +248,26 @@ fn main() -> Result<(), io::Error> {
             if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
                 doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
             }
+
+            let str_root_dir = root_dir.display().to_string();
+            let str_doc_path = doc_path.display().to_string();
+            let absolute_root_dir = Path::new(&str_root_dir);
+            let absolute_doc_path = Path::new(&str_doc_path);
+        
+            let relative_doc_path = diff_paths(absolute_doc_path, absolute_root_dir)
+                .unwrap()
+                .display()
+                .to_string();
+
             let template_file = submatch.value_of("template_file").unwrap_or_default();
             let format = submatch.value_of("format").unwrap_or_default();
             let language = submatch.value_of("language").unwrap_or_default();
 
-            let template_directory = doc_path.join(
-                submatch
-                    .value_of("template_directory")
-                    .unwrap_or(".template"),
-            );
+            let default_template_directory = &Path::new(&relative_doc_path).join(".template").display().to_string();
+
+            let template_directory = submatch
+                .value_of("template_directory")
+                .unwrap_or(default_template_directory);
 
             let mut adr_format = false;
             if submatch.is_present("adr_format") {
@@ -269,6 +285,7 @@ fn main() -> Result<(), io::Error> {
             }
 
             init::init(
+                root_dir,
                 doc_path,
                 template_file,
                 format,
@@ -346,7 +363,14 @@ fn main() -> Result<(), io::Error> {
             }
 
             decision_record::new_record(
-                title, supersede, deprecate, amend, link, proposed, approved, config::load_config()
+                title,
+                supersede,
+                deprecate,
+                amend,
+                link,
+                proposed,
+                approved,
+                config::load_config(),
             );
         }
         ("approve", Some(submatch)) => {

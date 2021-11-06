@@ -1,3 +1,5 @@
+use crate::config;
+
 pub fn new_record(
     title: String,
     supersede: String,
@@ -6,7 +8,7 @@ pub fn new_record(
     link: String,
     proposed: bool,
     approved: bool,
-    config: ()
+    config: config::Config,
 ) {
     println!("title: {}", title);
     println!("supersede: {}", supersede);
@@ -15,7 +17,11 @@ pub fn new_record(
     println!("link: {}", link);
     println!("proposed: {}", proposed);
     println!("approved: {}", approved);
-    println!("config: {:?}", config);
+    println!("config.record_path: {:?}", config.record_path);
+    println!("config.template_path: {:?}", config.template_path);
+    println!("config.template_language: {}", config.template_language);
+    println!("config.template_file: {}", config.template_file);
+    println!("config.template_format: {}", config.template_format);
 }
 
 pub fn approve(records: String) {
