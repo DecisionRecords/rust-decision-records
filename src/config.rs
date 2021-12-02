@@ -25,7 +25,8 @@ pub struct Config {
     pub template_path: PathBuf,
     pub template_language: String,
     pub template_file: String,
-    pub template_format: String
+    pub template_format: String,
+    pub template_string: String,
 }
 
 // Based on https://gist.github.com/rust-play/66643f002522e9a19f9261d0a7e762ff
@@ -35,7 +36,29 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
         template_path: path.to_path_buf(),
         template_language: String::from("en"),
         template_file: String::from("INTERNAL"),
-        template_format: String::from("md")
+        template_format: String::from("md"),
+        template_string: String::from(
+            "# NUMBER. TITLE
+
+Date: DATE
+
+## Status
+
+STATUS
+
+## Context
+
+This is the context.
+
+## Decision
+
+This is the decision that was made.
+
+## Consequence
+
+This is the consequence of the decision.
+",
+        ),
     };
     let mut pathbuf = PathBuf::new();
     let mut lastpath = String::new();
@@ -66,7 +89,7 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
                         }
                     }
                 }
-                
+
                 if unix_path.is_match(&theline) {
                     let split_path_array = theline.split("/");
                     for split_path in split_path_array {
@@ -84,7 +107,7 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
                 }
                 config.record_path = PathBuf::from(record_path);
             }
-        
+
             return Ok(config);
         }
 
@@ -95,10 +118,11 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
         if pathbuf.exists() {
             let mut root_path: PathBuf = pathbuf.clone();
             let re_record_path = Regex::new(r"^records=(.*)$").unwrap();
-            let re_system_language = Regex::new(r"^language=(.*)$").unwrap();
+            let re_language = Regex::new(r"^language=(.*)$").unwrap();
             let re_template_dir = Regex::new(r"^templateDir=(.*)$").unwrap();
             let re_template = Regex::new(r"^template=(.*)$").unwrap();
             let re_filetype = Regex::new(r"^fileType=(.*)$").unwrap();
+            let mut def_template_dir: bool = false;
 
             if let Ok(lines) = read_lines(pathbuf) {
                 root_path.pop();
@@ -111,15 +135,16 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
                                 record_path.push(String::from(the_record_path));
                                 config.record_path = record_path;
                             }
-                            if re_system_language.is_match(&line) {
-                                let system_language = re_system_language.replace(&line, "$1");
-                                config.template_language = String::from(system_language);
+                            if re_language.is_match(&line) {
+                                let language = re_language.replace(&line, "$1");
+                                config.template_language = String::from(language);
                             }
                             if re_template_dir.is_match(&line) {
                                 let template_dir = re_template_dir.replace(&line, "$1");
                                 let mut template_path: PathBuf = root_path.clone();
                                 template_path.push(String::from(template_dir));
                                 config.template_path = template_path;
+                                def_template_dir = true;
                             }
                             if re_template.is_match(&line) {
                                 let template = re_template.replace(&line, "$1");
@@ -129,6 +154,23 @@ fn walk_path(path: &Path) -> Result<Config, io::Error> {
                                 let filetype = re_filetype.replace(&line, "$1");
                                 config.template_format = String::from(filetype);
                             }
+                        }
+                    }
+                }
+            }
+            if def_template_dir {
+                let mut temp_template_file: PathBuf = PathBuf::from(&config.template_path);
+                let mut temp_template_filename: String = String::from(&config.template_file);
+                temp_template_filename.push_str(".");
+                temp_template_filename.push_str(&String::from(&config.template_language));
+                temp_template_filename.push_str(".");
+                temp_template_filename.push_str(&String::from(&config.template_format));
+                temp_template_file.push(temp_template_filename);
+                if let Ok(lines) = read_lines(temp_template_file) {
+                    config.template_string = String::from("");
+                    for line in lines {
+                        if let Ok(line) = line {
+                            config.template_string.push_str(&line);
                         }
                     }
                 }
