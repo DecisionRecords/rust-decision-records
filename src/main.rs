@@ -2,12 +2,11 @@ use std::env;
 use std::io;
 use std::path::Path;
 
-extern crate pathdiff;
 extern crate clap;
+extern crate pathdiff;
 
-use pathdiff::diff_paths;
 use clap::{App, Arg};
-
+use pathdiff::diff_paths;
 
 mod config;
 mod decision_record;
@@ -244,57 +243,69 @@ fn main() -> Result<(), io::Error> {
     match app.subcommand() {
         ("init", Some(submatch)) => {
             let root_dir = env::current_dir()?;
-            let mut doc_path = root_dir.join("doc").join("decision_records");
-            if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
-                doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
-            }
-
-            let str_root_dir = root_dir.display().to_string();
-            let str_doc_path = doc_path.display().to_string();
-            let absolute_root_dir = Path::new(&str_root_dir);
-            let absolute_doc_path = Path::new(&str_doc_path);
-        
-            let relative_doc_path = diff_paths(absolute_doc_path, absolute_root_dir)
-                .unwrap()
-                .display()
-                .to_string();
-
-            let template_file = submatch.value_of("template_file").unwrap_or_default();
-            let format = submatch.value_of("format").unwrap_or_default();
-            let language = submatch.value_of("language").unwrap_or_default();
-
-            let default_template_directory = &Path::new(&relative_doc_path).join(".template").display().to_string();
-
-            let template_directory = submatch
-                .value_of("template_directory")
-                .unwrap_or(default_template_directory);
-
-            let mut adr_format = false;
-            if submatch.is_present("adr_format") {
-                adr_format = true;
-            }
-
-            let mut default_proposed = false;
-            if submatch.is_present("default_proposed") {
-                default_proposed = true;
-            }
 
             let mut force = false;
             if submatch.is_present("force") {
                 force = true;
             }
 
-            init::init(
-                root_dir,
-                doc_path,
-                template_file,
-                format,
-                language,
-                template_directory,
-                adr_format,
-                default_proposed,
-                force,
-            );
+            let adr_format: bool;
+            match submatch.occurrences_of("adr_format") {
+                0 => adr_format = false,
+                _ => adr_format = true,
+            }
+            if adr_format {
+                let mut doc_path = root_dir.join("doc").join("adr");
+                if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
+                    doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
+                }
+
+                init::short_init(root_dir, doc_path, force);
+            } else {
+                let mut doc_path = root_dir.join("doc").join("decision_records");
+                if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
+                    doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
+                }
+
+                let str_root_dir = root_dir.display().to_string();
+                let str_doc_path = doc_path.display().to_string();
+                let absolute_root_dir = Path::new(&str_root_dir);
+                let absolute_doc_path = Path::new(&str_doc_path);
+
+                let relative_doc_path = diff_paths(absolute_doc_path, absolute_root_dir)
+                    .unwrap()
+                    .display()
+                    .to_string();
+
+                let template_file = submatch.value_of("template_file").unwrap_or_default();
+                let format = submatch.value_of("format").unwrap_or_default();
+                let language = submatch.value_of("language").unwrap_or_default();
+
+                let default_template_directory = &Path::new(&relative_doc_path)
+                    .join(".template")
+                    .display()
+                    .to_string();
+
+                let template_directory = submatch
+                    .value_of("template_directory")
+                    .unwrap_or(default_template_directory);
+
+                let mut default_proposed = false;
+                if submatch.is_present("default_proposed") {
+                    default_proposed = true;
+                }
+
+                init::init(
+                    root_dir,
+                    doc_path,
+                    template_file,
+                    format,
+                    language,
+                    template_directory,
+                    default_proposed,
+                    force,
+                );
+            }
         }
         ("new", Some(submatch)) => {
             let mut title: String = "".to_owned();
