@@ -22,6 +22,7 @@ pub fn new_record(
     println!("config.template_language: {}", config.template_language);
     println!("config.template_file: {}", config.template_file);
     println!("config.template_format: {}", config.template_format);
+    println!("config.template_string: {}", config.template_string);
 }
 
 pub fn approve(records: String) {
