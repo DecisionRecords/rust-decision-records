@@ -4,7 +4,7 @@ use pathdiff::diff_paths;
 use regex::Regex;
 use std::fs::{canonicalize, create_dir_all, remove_file, File};
 use std::io::prelude::*;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
 fn create_file(filename: PathBuf, content: String) -> Result<(), Error> {
@@ -24,20 +24,37 @@ fn load_template(language: String, format: String) -> Result<String, Error> {
 
     if language == "en" || short_language == "en" {
         if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000D}\u{000D}Date: DATE\u{000D}\u{000D}## Status\u{000D}\u{000D}STATUS\u{000D}\u{000D}## Context\u{000D}\u{000D}This is the context.\u{000D}\u{000D}## Decision\u{000D}\u{000D}This is the decision that was made.\u{000D}\u{000D}## Consequence\u{000D}\u{000D}This is the consequence of the decision.\u{000D}".to_string());
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
         } else if format == "rst" {
-            return Ok("#################\u{000D}NUMBER. TITLE\u{000D}#################\u{000D}\u{000D}Date: DATE\u{000D}\u{000D}******\u{000D}Status\u{000D}******\u{000D}\u{000D}STATUS\u{000D}\u{000D}*******\u{000D}Context\u{000D}*******\u{000D}\u{000D}This is the context.\u{000D}\u{000D}********\u{000D}Decision\u{000D}********\u{000D}\u{000D}This is the decision that was made.\u{000D}\u{000D}***********\u{000D}Consequence\u{000D}***********\u{000D}\u{000D}This is the consequence of the decision.\u{000D}".to_string());
+            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
         } else {
-            panic!("Invalid Language/Format match.");
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
         }
     } else if language == "fr" || short_language == "fr" {
         if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000D}\u{000D}Date: DATE\u{000D}\u{000D}## Statut\u{000D}\u{000D}STATUS\u{000D}\u{000D}## Le contexte\u{000D}\u{000D}C'est le Contexte.\u{000D}\u{000D}## Décision\u{000D}\u{000D}Pris une décision.\u{000D}\u{000D}## Conséquence\u{000D}\u{000D}C'est la conséquence de la décision.\u{000D}".to_string());
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Statut\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Le contexte\u{000A}\u{000A}C'est le Contexte.\u{000A}\u{000A}## Décision\u{000A}\u{000A}Pris une décision.\u{000A}\u{000A}## Conséquence\u{000A}\u{000A}C'est la conséquence de la décision.\u{000A}".to_string());
+        } else if format == "ref" {
+            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}".to_string());
         } else {
-            panic!("Invalid Language/Format match.");
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
         }
     } else {
-        panic!("Invalid Language/Format match.");
+        if format == "md" {
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else if format == "rst" {
+            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
+        }
     }
 }
 
@@ -122,11 +139,11 @@ pub fn init(
     let mut config_string: String = "".to_string();
     config_string.push_str("records=");
     config_string.push_str(&relative_doc_path);
-    config_string.push_str("\u{000D}");
+    config_string.push_str("\u{000A}");
 
     config_string.push_str("templateDir=");
     config_string.push_str(template_directory);
-    config_string.push_str("\u{000D}");
+    config_string.push_str("\u{000A}");
 
     println!(
         "root_dir: {}",
@@ -154,6 +171,8 @@ pub fn init(
     complete_language_template_filename.push_str(format);
     let complete_absolute_template_path =
         absolute_template_directory_path.join(&complete_language_template_filename);
+    let complete_language_template_ref_path =
+        absolute_template_directory_path.join(&complete_language_template_ref);
 
     let re = Regex::new("([a-zA-Z]+)([-_][a-zA-Z]+)").unwrap();
     let mut partial_language_template_filename = String::from(template_file);
@@ -165,6 +184,8 @@ pub fn init(
     partial_language_template_filename.push_str(format);
     let partial_absolute_template_path =
         absolute_template_directory_path.join(&partial_language_template_filename);
+    let partial_language_template_ref_path =
+        absolute_template_directory_path.join(&partial_language_template_ref);
 
     let mut no_language_template_filename = String::from(template_file);
     no_language_template_filename.push_str(".");
@@ -173,23 +194,25 @@ pub fn init(
     no_language_template_filename.push_str(format);
     let no_absolute_template_path =
         absolute_template_directory_path.join(&no_language_template_filename);
+    let no_language_template_ref_path =
+        absolute_template_directory_path.join(&no_language_template_ref);
 
     if language != "" {
         config_string.push_str("language=");
         config_string.push_str(language);
-        config_string.push_str("\u{000D}");
+        config_string.push_str("\u{000A}");
     }
 
     if template_file != "" {
         config_string.push_str("template=");
         config_string.push_str(template_file);
-        config_string.push_str("\u{000D}");
+        config_string.push_str("\u{000A}");
     }
 
     if format != "" {
         config_string.push_str("fileType=");
         config_string.push_str(format);
-        config_string.push_str("\u{000D}");
+        config_string.push_str("\u{000A}");
     }
 
     println!("Checking config file");
@@ -211,7 +234,7 @@ pub fn init(
         }
 
         println!("Checking Template directory");
-        if !absolute_doc_path.exists() {
+        if !absolute_template_directory_path.exists() {
             println!("Not found...");
             println!("Making Template directory");
             let create_template_dir = create_dir_all(absolute_template_directory_path);
@@ -233,6 +256,21 @@ pub fn init(
                 let template_string = result_template.unwrap();
                 println!("Writing default template file");
                 let create_template = create_file(complete_absolute_template_path, template_string);
+                if create_template.is_ok() {
+                    println!("Done");
+                }
+            }
+        }
+        if !complete_language_template_ref_path.exists()
+            && !partial_language_template_ref_path.exists()
+            && !no_language_template_ref_path.exists()
+        {
+            let result_reference = load_template(language.to_string(), "ref".to_string());
+            if result_reference.is_ok() {
+                let template_string = result_reference.unwrap();
+                println!("Writing default template reference");
+                let create_template =
+                    create_file(complete_language_template_ref_path, template_string);
                 if create_template.is_ok() {
                     println!("Done");
                 }
