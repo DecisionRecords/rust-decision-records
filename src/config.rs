@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -27,6 +28,7 @@ pub struct Config {
     pub template_file: String,
     pub template_format: String,
     pub template_string: String,
+    pub template_placeholders: HashMap<String, String>,
 }
 
 // Based on https://gist.github.com/rust-play/66643f002522e9a19f9261d0a7e762ff
@@ -59,6 +61,7 @@ This is the decision that was made.
 This is the consequence of the decision.
 ",
         ),
+        template_placeholders: HashMap::new(),
     };
     let mut pathbuf = PathBuf::new();
     let mut lastpath = String::new();
@@ -159,18 +162,139 @@ This is the consequence of the decision.
                 }
             }
             if def_template_dir {
-                let mut temp_template_file: PathBuf = PathBuf::from(&config.template_path);
-                let mut temp_template_filename: String = String::from(&config.template_file);
-                temp_template_filename.push_str(".");
-                temp_template_filename.push_str(&String::from(&config.template_language));
-                temp_template_filename.push_str(".");
-                temp_template_filename.push_str(&String::from(&config.template_format));
-                temp_template_file.push(temp_template_filename);
-                if let Ok(lines) = read_lines(temp_template_file) {
-                    config.template_string = String::from("");
-                    for line in lines {
-                        if let Ok(line) = line {
-                            config.template_string.push_str(&line);
+                let short_language = String::from(&config.template_language);
+                let re = Regex::new("^([a-zA-Z]+)([-_][a-zA-Z]+|)$").unwrap();
+                re.replace(&short_language, "${1}");
+
+                let placeholder_re = Regex::new("^(.*)=\"(.*)\"").unwrap();
+
+                let mut temp_long_template_file: PathBuf = PathBuf::from(&config.template_path);
+                let mut temp_long_template_placeholder_file: PathBuf =
+                    PathBuf::from(&config.template_path);
+                let mut temp_long_template_filename: String = String::from(&config.template_file);
+                let mut temp_long_template_placeholder_filename: String =
+                    String::from(&config.template_file);
+
+                let mut temp_short_template_file: PathBuf = PathBuf::from(&config.template_path);
+                let mut temp_short_template_placeholder_file: PathBuf =
+                    PathBuf::from(&config.template_path);
+                let mut temp_short_template_filename: String = String::from(&config.template_file);
+                let mut temp_short_template_placeholder_filename: String =
+                    String::from(&config.template_file);
+
+                let mut temp_default_template_file: PathBuf = PathBuf::from(&config.template_path);
+                let mut temp_default_template_placeholder_file: PathBuf =
+                    PathBuf::from(&config.template_path);
+                let mut temp_default_template_filename: String =
+                    String::from(&config.template_file);
+                let mut temp_default_template_placeholder_filename: String =
+                    String::from(&config.template_file);
+
+                temp_long_template_filename.push_str(".");
+                temp_long_template_filename.push_str(&String::from(&config.template_language));
+                temp_long_template_filename.push_str(".");
+                temp_long_template_filename.push_str(&String::from(&config.template_format));
+                temp_long_template_file.push(temp_long_template_filename);
+
+                temp_long_template_placeholder_filename.push_str(".");
+                temp_long_template_placeholder_filename
+                    .push_str(&String::from(&config.template_language));
+                temp_long_template_placeholder_filename.push_str(".ref");
+                temp_long_template_placeholder_file.push(temp_long_template_placeholder_filename);
+
+                temp_short_template_filename.push_str(".");
+                temp_short_template_filename.push_str(&String::from(short_language));
+                temp_short_template_filename.push_str(".");
+                temp_short_template_filename.push_str(&String::from(&config.template_format));
+                temp_short_template_file.push(temp_short_template_filename);
+
+                temp_short_template_placeholder_filename.push_str(".");
+                temp_short_template_placeholder_filename
+                    .push_str(&String::from(&config.template_language));
+                temp_short_template_placeholder_filename.push_str(".ref");
+                temp_short_template_placeholder_file.push(temp_short_template_placeholder_filename);
+
+                temp_default_template_filename.push_str(".");
+                temp_default_template_filename.push_str(&String::from(&config.template_format));
+                temp_default_template_file.push(temp_default_template_filename);
+
+                temp_default_template_placeholder_filename.push_str(".ref");
+                temp_default_template_placeholder_file
+                    .push(temp_default_template_placeholder_filename);
+
+                if temp_long_template_file.exists() {
+                    if let Ok(lines) = read_lines(temp_long_template_file) {
+                        config.template_string = String::from("");
+                        for line in lines {
+                            if let Ok(line) = line {
+                                config.template_string.push_str(&line);
+                            }
+                        }
+                    }
+                } else if temp_short_template_file.exists() {
+                    if let Ok(lines) = read_lines(temp_short_template_file) {
+                        config.template_string = String::from("");
+                        for line in lines {
+                            if let Ok(line) = line {
+                                config.template_string.push_str(&line);
+                            }
+                        }
+                    }
+                } else if temp_default_template_file.exists() {
+                    if let Ok(lines) = read_lines(temp_default_template_file) {
+                        config.template_string = String::from("");
+                        for line in lines {
+                            if let Ok(line) = line {
+                                config.template_string.push_str(&line);
+                            }
+                        }
+                    }
+                }
+
+                if temp_default_template_placeholder_file.exists() {
+                    if let Ok(lines) = read_lines(temp_default_template_placeholder_file) {
+                        for line in lines {
+                            if let Ok(line) = line {
+                                let key = placeholder_re
+                                    .replace(&String::from(&line), "$1")
+                                    .to_string();
+                                let value = placeholder_re
+                                    .replace(&String::from(&line), "$2")
+                                    .to_string();
+                                config.template_placeholders.insert(key, value);
+                            }
+                        }
+                    }
+                }
+
+                if temp_short_template_placeholder_file.exists() {
+                    if let Ok(lines) = read_lines(temp_short_template_placeholder_file) {
+                        for line in lines {
+                            if let Ok(line) = line {
+                                let key = placeholder_re
+                                    .replace(&String::from(&line), "$1")
+                                    .to_string();
+                                let value = placeholder_re
+                                    .replace(&String::from(&line), "$2")
+                                    .to_string();
+                                config.template_placeholders.insert(key, value);
+                            }
+                        }
+                    }
+                }
+
+                if temp_long_template_placeholder_file.exists() {
+                    if let Ok(lines) = read_lines(temp_long_template_placeholder_file) {
+                        for line in lines {
+                            if let Ok(line) = line {
+                                let key = placeholder_re
+                                    .replace(&String::from(&line), "$1")
+                                    .to_string();
+                                let value = placeholder_re
+                                    .replace(&String::from(&line), "$2")
+                                    .to_string();
+                                config.template_placeholders.insert(key, value);
+                            }
                         }
                     }
                 }
