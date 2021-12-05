@@ -7,59 +7,11 @@ use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
-fn create_file(filename: PathBuf, content: String) -> Result<(), Error> {
-    let bytes_content = content.as_bytes();
+// In here we have two versions - the "short init" for use with the adr format
+// and the "normal init" used with the new decision-record format directory.
 
-    let string_filename = filename.display().to_string();
-    let path_filename = Path::new(&string_filename);
-    let mut file_object = File::create(path_filename)?;
-    file_object.write_all(bytes_content)?;
-    return Ok(());
-}
-
-fn load_template(language: String, format: String) -> Result<String, Error> {
-    let short_language = String::from(&language);
-    let re = Regex::new("^([a-zA-Z]+)([-_][a-zA-Z]+|)$").unwrap();
-    re.replace(&short_language, "${1}");
-
-    if language == "en" || short_language == "en" {
-        if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
-        } else if format == "rst" {
-            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
-        } else {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "Invalid Language/Format Match.",
-            ));
-        }
-    } else if language == "fr" || short_language == "fr" {
-        if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Statut\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Le contexte\u{000A}\u{000A}C'est le Contexte.\u{000A}\u{000A}## Décision\u{000A}\u{000A}Pris une décision.\u{000A}\u{000A}## Conséquence\u{000A}\u{000A}C'est la conséquence de la décision.\u{000A}".to_string());
-        } else if format == "ref" {
-            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}".to_string());
-        } else {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "Invalid Language/Format Match.",
-            ));
-        }
-    } else {
-        if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
-        } else if format == "rst" {
-            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
-        } else {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "Invalid Language/Format Match.",
-            ));
-        }
-    }
-}
-
-pub fn short_init(root_dir: PathBuf, doc_path: PathBuf, force: bool) {
-    println!("ADR format");
+// TODO: Document this script
+pub fn short_init(root_dir: PathBuf, doc_path: PathBuf, force: bool) -> Result<(), Error> {
     let str_root_dir = root_dir.display().to_string();
     let str_doc_path = doc_path.display().to_string();
     let absolute_root_dir = Path::new(&str_root_dir);
@@ -74,41 +26,19 @@ pub fn short_init(root_dir: PathBuf, doc_path: PathBuf, force: bool) {
         .display()
         .to_string();
 
-    println!(
-        "root_dir: {}",
-        canonicalize(absolute_root_dir)
-            .unwrap()
-            .display()
-            .to_string()
-    );
-    println!("doc_path: {}", str_doc_path);
-    println!("relative_doc_path: {}", relative_doc_path);
-
-    println!("Checking config file");
     if (absolute_config_path.exists() && force) || !absolute_config_path.exists() {
         if absolute_config_path.exists() && force {
-            println!("Found, removing...");
             remove_file(&absolute_config_path).unwrap();
         }
-        println!("Making config file");
-        let create_file = create_file(absolute_config_path, relative_doc_path);
-        if create_file.is_ok() {
-            println!("Done");
-        }
-        println!("Checking Doc directory");
+        create_file(absolute_config_path, relative_doc_path).unwrap();
+
         if !absolute_doc_path.exists() {
-            println!("Not found...");
-            println!("Making Doc directory");
-            let create_dir = create_dir_all(absolute_doc_path);
-            if create_dir.is_ok() {
-                println!("Done");
-            }
-        } else {
-            println!("Doc directory already exists");
+            create_dir_all(absolute_doc_path).unwrap();
         }
     } else {
-        panic!("Config file already exists");
+        panic!("Unable to initialize directory, config file already exists");
     }
+    return Ok(());
 }
 
 pub fn init(
@@ -120,8 +50,7 @@ pub fn init(
     template_directory: &str,
     default_proposed: bool,
     force: bool,
-) {
-    println!("Non-ADR format");
+) -> Result<(), Error> {
     let str_root_dir = root_dir.display().to_string();
     let str_doc_path = doc_path.display().to_string();
     let absolute_root_dir = Path::new(&str_root_dir);
@@ -215,6 +144,16 @@ pub fn init(
         config_string.push_str("\u{000A}");
     }
 
+    if default_proposed {
+        config_string.push_str("defaultProposed=");
+        config_string.push_str("true");
+        config_string.push_str("\u{000A}");
+    } else {
+        config_string.push_str("defaultProposed=");
+        config_string.push_str("false");
+        config_string.push_str("\u{000A}");
+    }
+
     println!("Checking config file");
     if (absolute_config_path.exists() && force) || !absolute_config_path.exists() {
         if absolute_config_path.exists() && force {
@@ -281,7 +220,63 @@ pub fn init(
         if create_file.is_ok() {
             println!("Done");
         }
+        return Ok(());
     } else {
         panic!("Config file already exists");
+    }
+}
+
+fn create_file(filename: PathBuf, content: String) -> Result<(), Error> {
+    // write_all requires bytes. Convert content to bytes.
+    let bytes_content = content.as_bytes();
+    // Convert the filename to a (temporary) string
+    let string_filename = filename.display().to_string();
+    // Then convert that into a path
+    let path_filename = Path::new(&string_filename);
+    // Then create the file object using that path
+    let mut file_object = File::create(path_filename)?;
+    // And then write everything to the file
+    file_object.write_all(bytes_content)?;
+    return Ok(());
+}
+
+fn load_template(language: String, format: String) -> Result<String, Error> {
+    let short_language = String::from(&language);
+    let re = Regex::new("^([a-zA-Z]+)([-_][a-zA-Z]+|)$").unwrap();
+    re.replace(&short_language, "${1}");
+
+    if language == "en" || short_language == "en" {
+        if format == "md" {
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else if format == "rst" {
+            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
+        }
+    } else if language == "fr" || short_language == "fr" {
+        if format == "md" {
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Statut\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Le contexte\u{000A}\u{000A}C'est le Contexte.\u{000A}\u{000A}## Décision\u{000A}\u{000A}Pris une décision.\u{000A}\u{000A}## Conséquence\u{000A}\u{000A}C'est la conséquence de la décision.\u{000A}".to_string());
+        } else if format == "ref" {
+            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}Proposed=\"Proposé\"\u{000A}Approved=\"Approuvé\"\u{000A}".to_string());
+        } else {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
+        }
+    } else {
+        if format == "md" {
+            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else if format == "rst" {
+            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+        } else {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Invalid Language/Format Match.",
+            ));
+        }
     }
 }

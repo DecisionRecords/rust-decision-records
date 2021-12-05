@@ -260,7 +260,7 @@ fn main() -> Result<(), io::Error> {
                     doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
                 }
 
-                init::short_init(root_dir, doc_path, force);
+                init::short_init(root_dir, doc_path, force)?;
             } else {
                 let mut doc_path = root_dir.join("doc").join("decision_records");
                 if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
@@ -304,7 +304,7 @@ fn main() -> Result<(), io::Error> {
                     template_directory,
                     default_proposed,
                     force,
-                );
+                )?;
             }
         }
         ("new", Some(submatch)) => {
@@ -381,7 +381,7 @@ fn main() -> Result<(), io::Error> {
                 link,
                 proposed,
                 approved,
-                config::load_config(),
+                config::load_config().unwrap(),
             );
         }
         ("approve", Some(submatch)) => {
