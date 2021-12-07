@@ -149,12 +149,12 @@ pub fn link(from: String, to: String, reason: String) -> Result<(), Error> {
     if reason.len() > 0 {
         translated_linked_from_string.push_str(" ");
         translated_linked_from_string.push_str(&translate_string(
-            "for reason %".to_string(),
+            "for the reason %".to_string(),
             &config.template_references,
         )?);
         translated_linked_to_string.push_str(" ");
         translated_linked_to_string.push_str(&translate_string(
-            "for reason %".to_string(),
+            "for the reason %".to_string(),
             &config.template_references,
         )?);
     }
