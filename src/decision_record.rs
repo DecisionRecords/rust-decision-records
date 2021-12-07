@@ -119,11 +119,13 @@ pub fn new_record(
 
 // Linking activities, referenced either above, or in the main.rs
 pub fn approve(records: String) -> Result<(), Error> {
+    println!("This feature is not yet enabled. A debugging statement will follow.");
     println!("records: {}", records);
     return Ok(());
 }
 
 pub fn proposed(records: String) -> Result<(), Error> {
+    println!("This feature is not yet enabled. A debugging statement will follow.");
     println!("records: {}", records);
     return Ok(());
 }
