@@ -6,11 +6,11 @@ use slug::slugify;
 use crate::config;
 use chrono::Local;
 use regex::Regex;
+use std::collections::HashMap;
 use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::io::{self, Error, ErrorKind};
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
 pub fn new_record(
     title: String,
@@ -129,55 +129,290 @@ pub fn proposed(records: String) -> Result<(), Error> {
 }
 
 pub fn link(from: String, to: String, reason: String) -> Result<(), Error> {
-    println!("from: {}", from);
-    println!("to: {}", to);
-    println!("reason: {}", reason);
-    return Ok(());
-}
+    // Create the regexes
+    let re_inject_filename_link = Regex::new("(#)").unwrap();
+    let re_inject_reason = Regex::new("(%)").unwrap();
 
-pub fn deprecate(from: String, to: String) -> Result<(), Error> {
-    println!("from: {}", from);
-    println!("to: {}", to);
-    return Ok(());
-}
-
-pub fn amend(from: String, to: String) -> Result<(), Error> {
-    println!("from: {}", from);
-    println!("to: {}", to);
-    return Ok(());
-}
-
-pub fn supersede(from: String, to: String) -> Result<(), Error> {
     // Load config values
     let config: config::Config = config::load_config().unwrap();
     let template_format = String::from(&config.template_format);
     let config_record_path = PathBuf::from(&config.record_path);
+
     // Translate some strings, using the config references
-    let search = translate_string("Status".to_string(), &config.template_references)?;
-    let translated_superseded_string = translate_string("Superseded by #".to_string(), &config.template_references)?;
-    let translated_supersedes_string = translate_string("Supersedes #".to_string(), &config.template_references)?;
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+    let mut translated_linked_from_string =
+        translate_string("Linked to #".to_string(), &config.template_references)?;
+    let mut translated_linked_to_string =
+        translate_string("Linked to #".to_string(), &config.template_references)?;
 
-    let from_records: Vec<&str> = from.split_terminator(',').collect();
-    let re_translate = Regex::new("(#)").unwrap();
+    if reason.len() > 0 {
+        translated_linked_from_string.push_str(" ");
+        translated_linked_from_string.push_str(&translate_string(
+            "for reason %".to_string(),
+            &config.template_references,
+        )?);
+        translated_linked_to_string.push_str(" ");
+        translated_linked_to_string.push_str(&translate_string(
+            "for reason %".to_string(),
+            &config.template_references,
+        )?);
+    }
+
+    // Get the path and the formatted title of the record to be superseded by
     let pathbuf_record_to = find_record(to.parse().unwrap(), &config_record_path)?;
+    let title_to: String = formatted_title_and_file_of_record(
+        &pathbuf_record_to,
+        &config_record_path,
+        &template_format,
+    )?;
+    let mut inject_to_link = re_inject_filename_link
+        .replace(&translated_linked_from_string, &title_to)
+        .to_string();
+    inject_to_link = re_inject_reason
+        .replace(&inject_to_link, &reason)
+        .to_string();
 
+    // Process the list of records to supersede
+    let from_records: Vec<&str> = from.split_terminator(',').collect();
     for record in from_records {
+        // Get the path and formatted title of the record to supersede
         let pathbuf_record_from = find_record(record.parse().unwrap(), &config_record_path)?;
+        let title_from: String = formatted_title_and_file_of_record(
+            &pathbuf_record_from,
+            &config_record_path,
+            &template_format,
+        )?;
+        let mut inject_from_link = re_inject_filename_link
+            .replace(&translated_linked_to_string, title_from)
+            .to_string();
+        inject_from_link = re_inject_reason
+            .replace(&inject_from_link, &reason)
+            .to_string();
 
-        let title_to: String = formatted_title_and_file_of_record(&pathbuf_record_to, &config_record_path, &template_format)?;
-        let title_from: String = formatted_title_and_file_of_record(&pathbuf_record_from, &config_record_path, &template_format)?;
+        // Update the "from" and "to" records with the respective amended and amends links
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_from,
+            &translated_status_header_string,
+            &inject_to_link,
+            false,
+            false,
+            &[],
+        )?;
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_to,
+            &translated_status_header_string,
+            &inject_from_link,
+            false,
+            false,
+            &[],
+        )?;
+    }
+    return Ok(());
+}
 
-        let inject_to_link = re_translate.replace(&translated_superseded_string, title_to).to_string();
-        let inject_from_link = re_translate.replace(&translated_supersedes_string, title_from).to_string();
+pub fn deprecate(from: String, to: String) -> Result<(), Error> {
+    // Create the regexes
+    let re_inject_filename_link = Regex::new("(#)").unwrap();
 
-        inject_text_in_a_file(&pathbuf_record_from, &search, inject_to_link, false, false)?;
-        inject_text_in_a_file(&pathbuf_record_to, &search, inject_from_link, false, false)?;
+    // Load config values
+    let config: config::Config = config::load_config().unwrap();
+    let template_format = String::from(&config.template_format);
+    let config_record_path = PathBuf::from(&config.record_path);
+
+    // Translate some strings, using the config references
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+    let translated_deprecated_string =
+        translate_string("Deprecated by #".to_string(), &config.template_references)?;
+    let translated_deprecates_string =
+        translate_string("Deprecates #".to_string(), &config.template_references)?;
+    let slice_prune_strings: &[&String] = &[
+        &translate_string("Approved".to_string(), &config.template_references).unwrap(),
+        &translate_string("Proposed".to_string(), &config.template_references).unwrap(),
+    ];
+
+    // Get the path and the formatted title of the record to be deprecated by
+    let pathbuf_record_to = find_record(to.parse().unwrap(), &config_record_path)?;
+    let title_to: String = formatted_title_and_file_of_record(
+        &pathbuf_record_to,
+        &config_record_path,
+        &template_format,
+    )?;
+    let inject_to_link = re_inject_filename_link
+        .replace(&translated_deprecated_string, &title_to)
+        .to_string();
+
+    // Process the list of records to deprecate
+    let from_records: Vec<&str> = from.split_terminator(',').collect();
+    for record in from_records {
+        // Get the path and formatted title of the record to deprecate
+        let pathbuf_record_from = find_record(record.parse().unwrap(), &config_record_path)?;
+        let title_from: String = formatted_title_and_file_of_record(
+            &pathbuf_record_from,
+            &config_record_path,
+            &template_format,
+        )?;
+        let inject_from_link = re_inject_filename_link
+            .replace(&translated_deprecates_string, title_from)
+            .to_string();
+
+        // Update the "from" and "to" records with the respective deprecate and deprecates links
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_from,
+            &translated_status_header_string,
+            &inject_to_link,
+            false,
+            false,
+            &slice_prune_strings,
+        )?;
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_to,
+            &translated_status_header_string,
+            &inject_from_link,
+            false,
+            false,
+            &[],
+        )?;
+    }
+    return Ok(());
+}
+
+pub fn amend(from: String, to: String) -> Result<(), Error> {
+    // Create the regexes
+    let re_inject_filename_link = Regex::new("(#)").unwrap();
+
+    // Load config values
+    let config: config::Config = config::load_config().unwrap();
+    let template_format = String::from(&config.template_format);
+    let config_record_path = PathBuf::from(&config.record_path);
+
+    // Translate some strings, using the config references
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+    let translated_amended_string =
+        translate_string("Amended by #".to_string(), &config.template_references)?;
+    let translated_amends_string =
+        translate_string("Amends #".to_string(), &config.template_references)?;
+
+    // Get the path and the formatted title of the record to be superseded by
+    let pathbuf_record_to = find_record(to.parse().unwrap(), &config_record_path)?;
+    let title_to: String = formatted_title_and_file_of_record(
+        &pathbuf_record_to,
+        &config_record_path,
+        &template_format,
+    )?;
+    let inject_to_link = re_inject_filename_link
+        .replace(&translated_amended_string, &title_to)
+        .to_string();
+
+    // Process the list of records to supersede
+    let from_records: Vec<&str> = from.split_terminator(',').collect();
+    for record in from_records {
+        // Get the path and formatted title of the record to supersede
+        let pathbuf_record_from = find_record(record.parse().unwrap(), &config_record_path)?;
+        let title_from: String = formatted_title_and_file_of_record(
+            &pathbuf_record_from,
+            &config_record_path,
+            &template_format,
+        )?;
+        let inject_from_link = re_inject_filename_link
+            .replace(&translated_amends_string, title_from)
+            .to_string();
+
+        // Update the "from" and "to" records with the respective amended and amends links
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_from,
+            &translated_status_header_string,
+            &inject_to_link,
+            false,
+            false,
+            &[],
+        )?;
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_to,
+            &translated_status_header_string,
+            &inject_from_link,
+            false,
+            false,
+            &[],
+        )?;
+    }
+    return Ok(());
+}
+
+pub fn supersede(from: String, to: String) -> Result<(), Error> {
+    // Create the regexes
+    let re_inject_filename_link = Regex::new("(#)").unwrap();
+
+    // Load config values
+    let config: config::Config = config::load_config().unwrap();
+    let template_format = String::from(&config.template_format);
+    let config_record_path = PathBuf::from(&config.record_path);
+
+    // Translate some strings, using the config references
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+    let translated_superseded_string =
+        translate_string("Superseded by #".to_string(), &config.template_references)?;
+    let translated_supersedes_string =
+        translate_string("Supersedes #".to_string(), &config.template_references)?;
+    let slice_prune_strings: &[&String] = &[
+        &translate_string("Approved".to_string(), &config.template_references).unwrap(),
+        &translate_string("Proposed".to_string(), &config.template_references).unwrap(),
+    ];
+
+    // Get the path and the formatted title of the record to be superseded by
+    let pathbuf_record_to = find_record(to.parse().unwrap(), &config_record_path)?;
+    let title_to: String = formatted_title_and_file_of_record(
+        &pathbuf_record_to,
+        &config_record_path,
+        &template_format,
+    )?;
+    let inject_to_link = re_inject_filename_link
+        .replace(&translated_superseded_string, &title_to)
+        .to_string();
+
+    // Process the list of records to supersede
+    let from_records: Vec<&str> = from.split_terminator(',').collect();
+    for record in from_records {
+        // Get the path and formatted title of the record to supersede
+        let pathbuf_record_from = find_record(record.parse().unwrap(), &config_record_path)?;
+        let title_from: String = formatted_title_and_file_of_record(
+            &pathbuf_record_from,
+            &config_record_path,
+            &template_format,
+        )?;
+        let inject_from_link = re_inject_filename_link
+            .replace(&translated_supersedes_string, title_from)
+            .to_string();
+
+        // Update the "from" and "to" records with the respective supersede and supersedes links
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_from,
+            &translated_status_header_string,
+            &inject_to_link,
+            false,
+            false,
+            &slice_prune_strings,
+        )?;
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record_to,
+            &translated_status_header_string,
+            &inject_from_link,
+            false,
+            false,
+            &[],
+        )?;
     }
     return Ok(());
 }
 
 // Internal functions for use in this crate
-fn translate_string(needle_string: String, haystack_kv: &HashMap<String, String>) -> Result<String, Error> {
+fn translate_string(
+    needle_string: String,
+    haystack_kv: &HashMap<String, String>,
+) -> Result<String, Error> {
     for (key, value) in haystack_kv {
         if String::from(key) == String::from(&needle_string) {
             return Ok(String::from(value));
@@ -186,7 +421,7 @@ fn translate_string(needle_string: String, haystack_kv: &HashMap<String, String>
     return Ok(needle_string);
 }
 
-// Create a file named with the variable `filename`, populated with content of the variable `content`. 
+// Create a file named with the variable `filename`, populated with content of the variable `content`.
 fn create_file(filename: &PathBuf, content: String) -> Result<(), Error> {
     // write_all requires bytes. Convert content to bytes.
     let bytes_content = content.as_bytes();
@@ -229,77 +464,103 @@ fn find_record(number: i32, config_record_path: &PathBuf) -> Result<PathBuf, Err
 
 // This function endevours to read the content of a file, find a search string, and then either inject the string at the start or end of that block
 // or replace the whole string entirely.
-fn inject_text_in_a_file(file: &PathBuf, search_line: &String, inject_line: String, start_of_block: bool, replace_block: bool) -> Result<(), Error> {
+fn inject_text_in_status_block_of_a_record(
+    pathbuf_of_file: &PathBuf,
+    translated_status_heading_string: &String,
+    inject_line: &String,
+    start_of_block: bool,
+    replace_block: bool,
+    remove_strings: &[&String],
+) -> Result<(), Error> {
     let mut temp_file_content: String = String::from("");
     let mut filetype: String = String::from("undefined");
     let mut bool_in_block: bool = false;
     let mut bool_found_search_line: bool = false; // Only used in RST files
     let mut bool_after_block: bool = false;
+    let mut last_line: String = String::from("");
 
     let re_filetype_md = Regex::new(r"\.md$").unwrap();
     let re_filetype_rst = Regex::new(r"\.rst$").unwrap();
-    let mut re_search_line = Regex::new(&String::from(search_line)).unwrap();
+    let mut re_search_line = Regex::new(&String::from(translated_status_heading_string)).unwrap();
     let mut re_find_delimiter = Regex::new("").unwrap();
 
-    if re_filetype_md.is_match(&file.display().to_string()) {
+    if re_filetype_md.is_match(&pathbuf_of_file.display().to_string()) {
         filetype = String::from("md");
         re_find_delimiter = Regex::new(r"^\s*#+\s+\S").unwrap();
         let mut str_search_line: String = String::from(r"^\s*#+\s+");
-        str_search_line.push_str(&search_line);
+        str_search_line.push_str(&translated_status_heading_string);
         str_search_line.push_str(r"\s*$");
         re_search_line = Regex::new(&str_search_line).unwrap();
-    } else if re_filetype_rst.is_match(&file.display().to_string()) {
+    } else if re_filetype_rst.is_match(&pathbuf_of_file.display().to_string()) {
         filetype = String::from("rst");
         re_find_delimiter = Regex::new(r"^\s*([*]+|[#]+)\s*$").unwrap();
     }
 
-    if let Ok(lines) = get_lines_from_a_file(&file) {
+    if let Ok(lines) = get_lines_from_a_file(&pathbuf_of_file) {
         for line in lines {
             if let Ok(line) = line {
-                if bool_after_block {
-                    temp_file_content.push_str(&line);
-                    temp_file_content.push_str("\u{000A}");
-                } else if bool_in_block {
-                    if re_find_delimiter.is_match(&line) {
-                        bool_after_block = true;
-                        if start_of_block == false {
-                            temp_file_content.push_str(&inject_line);
-                            temp_file_content.push_str("\u{000A}\u{000A}");
-                        }
-                    } 
-                    temp_file_content.push_str(&line);
-                    temp_file_content.push_str("\u{000A}");
-                } else if filetype == "md" {
-                    temp_file_content.push_str(&line);
-                    temp_file_content.push_str("\u{000A}");
-                    if re_search_line.is_match(&line) {
-                        bool_in_block = true;
-                        if start_of_block || replace_block {
-                            temp_file_content.push_str("\u{000A}");
-                            temp_file_content.push_str(&inject_line);
-                            temp_file_content.push_str("\u{000A}");
-                            if replace_block {
-                                bool_after_block = true;
-                                temp_file_content.push_str("\u{000A}");
-                            }
-                        }
+                let mut prune_line: bool = false;
+                for prune_item in remove_strings {
+                    let mut str_prune_item: String = String::from(r"^\s*");
+                    str_prune_item.push_str(prune_item);
+                    str_prune_item.push_str(r"\s*.*$");
+                    let re_prune_item = Regex::new(&str_prune_item).unwrap();
+                    if re_prune_item.is_match(&line) {
+                        prune_line = true;
                     }
-                } else if filetype == "rst" {
-                    temp_file_content.push_str(&line);
-                    temp_file_content.push_str("\u{000A}");
-
-                    if re_search_line.is_match(&line) {
-                        bool_found_search_line = true;
-                    } else if bool_found_search_line {
-                        bool_in_block = true;
-                        if start_of_block || replace_block {
+                }
+                if !prune_line {
+                    if !(last_line.len() == 0 && line.len() == 0) {
+                        if bool_after_block {
+                            temp_file_content.push_str(&line);
                             temp_file_content.push_str("\u{000A}");
-                            temp_file_content.push_str(&inject_line);
-                            temp_file_content.push_str("\u{000A}");
-                            if replace_block {
+                            last_line = line;
+                        } else if bool_in_block {
+                            if re_find_delimiter.is_match(&line) {
                                 bool_after_block = true;
-                                temp_file_content.push_str("\u{000A}");
+                                if start_of_block == false {
+                                    temp_file_content.push_str(&inject_line);
+                                    temp_file_content.push_str("\u{000A}\u{000A}");
+                                }
                             }
+                            temp_file_content.push_str(&line);
+                            temp_file_content.push_str("\u{000A}");
+                            last_line = line;
+                        } else if filetype == "md" {
+                            temp_file_content.push_str(&line);
+                            temp_file_content.push_str("\u{000A}");
+                            if re_search_line.is_match(&line) {
+                                bool_in_block = true;
+                                if start_of_block || replace_block {
+                                    temp_file_content.push_str("\u{000A}");
+                                    temp_file_content.push_str(&inject_line);
+                                    temp_file_content.push_str("\u{000A}");
+                                    if replace_block {
+                                        bool_after_block = true;
+                                        temp_file_content.push_str("\u{000A}");
+                                    }
+                                }
+                            }
+                            last_line = line;
+                        } else if filetype == "rst" {
+                            temp_file_content.push_str(&line);
+                            temp_file_content.push_str("\u{000A}");
+
+                            if re_search_line.is_match(&line) {
+                                bool_found_search_line = true;
+                            } else if bool_found_search_line {
+                                bool_in_block = true;
+                                if start_of_block || replace_block {
+                                    temp_file_content.push_str("\u{000A}");
+                                    temp_file_content.push_str(&inject_line);
+                                    temp_file_content.push_str("\u{000A}");
+                                    if replace_block {
+                                        bool_after_block = true;
+                                        temp_file_content.push_str("\u{000A}");
+                                    }
+                                }
+                            }
+                            last_line = line;
                         }
                     }
                 }
@@ -307,7 +568,7 @@ fn inject_text_in_a_file(file: &PathBuf, search_line: &String, inject_line: Stri
         }
     }
 
-    create_file(file, temp_file_content)?;
+    create_file(pathbuf_of_file, temp_file_content)?;
     return Ok(());
 }
 
@@ -322,7 +583,11 @@ where
 
 // This function turns a PathBuf object into a markdown link. If the Object is readable as a Markdown link or a Restructured Text
 // file, with the title as the first heading, then it will encapsulate the title in the relevant formatted link.
-fn formatted_title_and_file_of_record(pathbuf_of_record: &PathBuf, base_path: &PathBuf, format: &String) -> Result<String, Error> {
+fn formatted_title_and_file_of_record(
+    pathbuf_of_record: &PathBuf,
+    base_path: &PathBuf,
+    format: &String,
+) -> Result<String, Error> {
     // Define Regexes
     let re_title_md = Regex::new(r"^# (\d+\.?\s+.*)\s?$").unwrap();
     let re_title_rst = Regex::new(r"^\s*[\*#]\s*+$").unwrap();
@@ -345,7 +610,7 @@ fn formatted_title_and_file_of_record(pathbuf_of_record: &PathBuf, base_path: &P
         link_text.push_str(&relative_path_to);
         link_text.push_str("](");
         link_text.push_str(&relative_path_to);
-        link_text.push_str(")");    
+        link_text.push_str(")");
     } else if format == "rst" {
         link_text = String::from(":doc:`");
         link_text.push_str(&relative_path_to);
@@ -380,7 +645,7 @@ fn formatted_title_and_file_of_record(pathbuf_of_record: &PathBuf, base_path: &P
             }
         }
     }
-    
+
     // If we couldn't find the title, return at least a formatted link string
     return Ok(link_text);
 }
