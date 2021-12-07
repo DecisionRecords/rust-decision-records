@@ -247,9 +247,63 @@ fn load_template(language: String, format: String) -> Result<String, Error> {
 
     if language == "en" || short_language == "en" {
         if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+            return Ok([
+                "# NUMBER. TITLE",
+                "",
+                "Date: DATE",
+                "",
+                "## Status",
+                "",
+                "STATUS",
+                "",
+                "## Context",
+                "",
+                "This is the context.",
+                "",
+                "## Decision",
+                "",
+                "This is the decision that was made.",
+                "",
+                "## Consequence",
+                "",
+                "This is the consequence of the decision.",
+                "",
+            ]
+            .join("\u{000A}"));
         } else if format == "rst" {
-            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+            return Ok([
+                "#################",
+                "NUMBER. TITLE",
+                "#################",
+                "",
+                "Date: DATE",
+                "",
+                "******",
+                "Status",
+                "******",
+                "",
+                "STATUS",
+                "",
+                "*******",
+                "Context",
+                "*******",
+                "",
+                "This is the context.",
+                "",
+                "********",
+                "Decision",
+                "********",
+                "",
+                "This is the decision that was made.",
+                "",
+                "***********",
+                "Consequence",
+                "***********",
+                "",
+                "This is the consequence of the decision.",
+                "",
+            ]
+            .join("\u{000A}"));
         } else {
             return Err(Error::new(
                 ErrorKind::Other,
@@ -258,9 +312,47 @@ fn load_template(language: String, format: String) -> Result<String, Error> {
         }
     } else if language == "fr" || short_language == "fr" {
         if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Statut\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Le contexte\u{000A}\u{000A}C'est le Contexte.\u{000A}\u{000A}## Décision\u{000A}\u{000A}Pris une décision.\u{000A}\u{000A}## Conséquence\u{000A}\u{000A}C'est la conséquence de la décision.\u{000A}".to_string());
+            return Ok([
+                "# NUMBER. TITLE",
+                "",
+                "Date: DATE",
+                "",
+                "## Statut",
+                "",
+                "STATUS",
+                "",
+                "## Le contexte",
+                "",
+                "C'est le Contexte.",
+                "",
+                "## Décision",
+                "",
+                "Pris une décision.",
+                "",
+                "## Conséquence",
+                "",
+                "C'est la conséquence de la décision.",
+                "",
+            ]
+            .join("\u{000A}"));
         } else if format == "ref" {
-            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}Proposed=\"Proposé\"\u{000A}Approved=\"Approuvé\"\u{000A}Superseded by #=\"Remplacé par #\"\u{000A}Supersedes #=\"Remplace #\"\u{000A}".to_string());
+            return Ok([
+                "Status=\"Statut\"",
+                "Context=\"Le contexte\"",
+                "Decision=\"Décision\"",
+                "Consequence=\"Conséquence\"",
+                "Proposed=\"Proposé\"",
+                "Approved=\"Approuvé\"",
+                "Superseded by #=\"Remplacé par #\"",
+                "Supersedes #=\"Remplace #\"",
+                "Linked to #=\"Lié à #\"",
+                "Deprecated by #=\"Obsolète par #\"",
+                "Deprecates #=\"Obsolète #\"",
+                "Amended by #=\"Modifié par #\"",
+                "Amends #=\"Modifie #\"",
+                "for the reason %=\"pour la raison %\"",
+            ]
+            .join("\u{000A}"));
         } else {
             return Err(Error::new(
                 ErrorKind::Other,
@@ -269,9 +361,63 @@ fn load_template(language: String, format: String) -> Result<String, Error> {
         }
     } else {
         if format == "md" {
-            return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Status\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Context\u{000A}\u{000A}This is the context.\u{000A}\u{000A}## Decision\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}## Consequence\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+            return Ok([
+                "# NUMBER. TITLE",
+                "",
+                "Date: DATE",
+                "",
+                "## Status",
+                "",
+                "STATUS",
+                "",
+                "## Context",
+                "",
+                "This is the context.",
+                "",
+                "## Decision",
+                "",
+                "This is the decision that was made.",
+                "",
+                "## Consequence",
+                "",
+                "This is the consequence of the decision.",
+                "",
+            ]
+            .join("\u{000A}"));
         } else if format == "rst" {
-            return Ok("#################\u{000A}NUMBER. TITLE\u{000A}#################\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}******\u{000A}Status\u{000A}******\u{000A}\u{000A}STATUS\u{000A}\u{000A}*******\u{000A}Context\u{000A}*******\u{000A}\u{000A}This is the context.\u{000A}\u{000A}********\u{000A}Decision\u{000A}********\u{000A}\u{000A}This is the decision that was made.\u{000A}\u{000A}***********\u{000A}Consequence\u{000A}***********\u{000A}\u{000A}This is the consequence of the decision.\u{000A}".to_string());
+            return Ok([
+                "#################",
+                "NUMBER. TITLE",
+                "#################",
+                "",
+                "Date: DATE",
+                "",
+                "******",
+                "Status",
+                "******",
+                "",
+                "STATUS",
+                "",
+                "*******",
+                "Context",
+                "*******",
+                "",
+                "This is the context.",
+                "",
+                "********",
+                "Decision",
+                "********",
+                "",
+                "This is the decision that was made.",
+                "",
+                "***********",
+                "Consequence",
+                "***********",
+                "",
+                "This is the consequence of the decision.",
+                "",
+            ]
+            .join("\u{000A}"));
         } else {
             return Err(Error::new(
                 ErrorKind::Other,
