@@ -14,9 +14,9 @@ mod init;
 
 fn main() -> Result<(), io::Error> {
     let app = App::new("decision-record")
-    .version("0.1.0")
+    .version("0.0.1")
     .author("Jon Spriggs <jon@sprig.gs>")
-    .about("Making Decision Records easier")
+    .about("Making Decision Records easier. See https://github.com/DecisionRecords/ for more details.")
     .subcommand(
       App::new("init")
         .about("Initializes the directory structures for new decision records.")
