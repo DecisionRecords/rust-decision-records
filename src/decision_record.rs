@@ -1,4 +1,6 @@
+extern crate pathdiff;
 extern crate slug;
+use pathdiff::diff_paths;
 use slug::slugify;
 
 use crate::config;
@@ -6,8 +8,9 @@ use chrono::Local;
 use regex::Regex;
 use std::fs::{read_dir, File};
 use std::io::prelude::*;
-use std::io::Error;
+use std::io::{self, Error, ErrorKind};
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 pub fn new_record(
     title: String,
@@ -18,7 +21,7 @@ pub fn new_record(
     proposed: bool,
     approved: bool,
     config: config::Config,
-) {
+) -> Result<(), Error> {
     // Regex Statements here
     let filename_structure = Regex::new(r".*[\\/](\d{4})([^\\/]*)$").unwrap();
     let re_number = Regex::new("NUMBER").unwrap();
@@ -28,8 +31,8 @@ pub fn new_record(
 
     // Default values here
     let mut max_file_prefix: i32 = 0;
-    let mut status: String = config.default_status;
-    let mut new_file_content: String = String::from(config.template_string);
+    let mut status: String = String::from(&config.default_status);
+    let mut new_file_content: String = String::from(&config.template_string);
     let mut absolute_filename: PathBuf = PathBuf::from(&config.record_path.display().to_string());
     let date_now = Local::now().format("%Y-%m-%d");
 
@@ -95,57 +98,96 @@ pub fn new_record(
         .unwrap();
 
     // Write the file.
-    let temp_create_file = create_file(absolute_filename, new_file_content);
-    if temp_create_file.is_ok() {
-        println!("Created file {}", this_filename);
-    }
+    create_file(&absolute_filename, new_file_content)?;
 
     // Run all linking activities
     if supersedes.len() > 0 {
-        supersede(supersedes, max_file_prefix.to_string());
+        supersede(supersedes, max_file_prefix.to_string())?;
     }
     if deprecates.len() > 0 {
-        deprecate(deprecates, max_file_prefix.to_string());
+        deprecate(deprecates, max_file_prefix.to_string())?;
     }
     if amends.len() > 0 {
-        amend(amends, max_file_prefix.to_string());
+        amend(amends, max_file_prefix.to_string())?;
     }
     if links.len() > 0 {
-        link(links, max_file_prefix.to_string(), "Linked".to_string());
+        link(links, max_file_prefix.to_string(), "Linked".to_string())?;
     }
+    println!("Created file {}", this_filename);
+    return Ok(());
 }
 
 // Linking activities, referenced either above, or in the main.rs
-pub fn approve(records: String) {
+pub fn approve(records: String) -> Result<(), Error> {
     println!("records: {}", records);
+    return Ok(());
 }
 
-pub fn proposed(records: String) {
+pub fn proposed(records: String) -> Result<(), Error> {
     println!("records: {}", records);
+    return Ok(());
 }
 
-pub fn link(from: String, to: String, reason: String) {
+pub fn link(from: String, to: String, reason: String) -> Result<(), Error> {
     println!("from: {}", from);
     println!("to: {}", to);
     println!("reason: {}", reason);
+    return Ok(());
 }
 
-pub fn deprecate(from: String, to: String) {
+pub fn deprecate(from: String, to: String) -> Result<(), Error> {
     println!("from: {}", from);
     println!("to: {}", to);
+    return Ok(());
 }
 
-pub fn amend(from: String, to: String) {
+pub fn amend(from: String, to: String) -> Result<(), Error> {
     println!("from: {}", from);
     println!("to: {}", to);
+    return Ok(());
 }
 
-pub fn supersede(from: String, to: String) {
-    println!("from: {}", from);
-    println!("to: {}", to);
+pub fn supersede(from: String, to: String) -> Result<(), Error> {
+    // Load config values
+    let config: config::Config = config::load_config().unwrap();
+    let template_format = String::from(&config.template_format);
+    let config_record_path = PathBuf::from(&config.record_path);
+    // Translate some strings, using the config references
+    let search = translate_string("Status".to_string(), &config.template_references)?;
+    let translated_superseded_string = translate_string("Superseded by #".to_string(), &config.template_references)?;
+    let translated_supersedes_string = translate_string("Supersedes #".to_string(), &config.template_references)?;
+
+    let from_records: Vec<&str> = from.split_terminator(',').collect();
+    let re_translate = Regex::new("(#)").unwrap();
+    let pathbuf_record_to = find_record(to.parse().unwrap(), &config_record_path)?;
+
+    for record in from_records {
+        let pathbuf_record_from = find_record(record.parse().unwrap(), &config_record_path)?;
+
+        let title_to: String = formatted_title_and_file_of_record(&pathbuf_record_to, &config_record_path, &template_format)?;
+        let title_from: String = formatted_title_and_file_of_record(&pathbuf_record_from, &config_record_path, &template_format)?;
+
+        let inject_to_link = re_translate.replace(&translated_superseded_string, title_to).to_string();
+        let inject_from_link = re_translate.replace(&translated_supersedes_string, title_from).to_string();
+
+        inject_text_in_a_file(&pathbuf_record_from, &search, inject_to_link, false, false)?;
+        inject_text_in_a_file(&pathbuf_record_to, &search, inject_from_link, false, false)?;
+    }
+    return Ok(());
 }
 
-fn create_file(filename: PathBuf, content: String) -> Result<(), Error> {
+// Internal functions for use in this crate
+fn translate_string(needle_string: String, haystack_kv: &HashMap<String, String>) -> Result<String, Error> {
+    for (key, value) in haystack_kv {
+        if String::from(key) == String::from(&needle_string) {
+            return Ok(String::from(value));
+        }
+    }
+    return Ok(needle_string);
+}
+
+// Create a file named with the variable `filename`, populated with content of the variable `content`. 
+fn create_file(filename: &PathBuf, content: String) -> Result<(), Error> {
     // write_all requires bytes. Convert content to bytes.
     let bytes_content = content.as_bytes();
     // Convert the filename to a (temporary) string
@@ -157,4 +199,188 @@ fn create_file(filename: PathBuf, content: String) -> Result<(), Error> {
     // And then write everything to the file
     file_object.write_all(bytes_content)?;
     return Ok(());
+}
+
+// Find the file which starts with the 4 character, zero padded string held in number in this directory.
+fn find_record(number: i32, config_record_path: &PathBuf) -> Result<PathBuf, Error> {
+    // Define the error message we will return if we can't find the file matching the defined structure.
+    let err_not_found = Error::new(ErrorKind::NotFound, "Required file was not found");
+
+    // Create a regex, starting by looking for the exact start of the file, an up-to 4-zero-padded string ending with the variable `number`.
+    // e.g. 0001, 0099, 0101, 1234
+    let mut str_find_file: String = format!("{:0>4}", number);
+    // Add the rest of the regex, looking for anything which is not a back-or-forward slash following a hyphen.
+    str_find_file.push_str(r"-[^\\/]*");
+    // Then create the regex, using this pattern we've just created.
+    let re_find_file = Regex::new(&str_find_file).unwrap();
+    // Step through the directory
+    let paths = read_dir(config_record_path)?;
+    for path in paths {
+        // Convert the path into a string we can match with the regex.
+        let str_path = path.unwrap().path().display().to_string();
+        if re_find_file.is_match(&str_path) {
+            // If it matched, turn the string back into a PathBuf and return it.
+            return Ok(PathBuf::from(str_path));
+        }
+    }
+    // Otherwise return the error we defined at the start of this function.
+    return Err(err_not_found);
+}
+
+// This function endevours to read the content of a file, find a search string, and then either inject the string at the start or end of that block
+// or replace the whole string entirely.
+fn inject_text_in_a_file(file: &PathBuf, search_line: &String, inject_line: String, start_of_block: bool, replace_block: bool) -> Result<(), Error> {
+    let mut temp_file_content: String = String::from("");
+    let mut filetype: String = String::from("undefined");
+    let mut bool_in_block: bool = false;
+    let mut bool_found_search_line: bool = false; // Only used in RST files
+    let mut bool_after_block: bool = false;
+
+    let re_filetype_md = Regex::new(r"\.md$").unwrap();
+    let re_filetype_rst = Regex::new(r"\.rst$").unwrap();
+    let mut re_search_line = Regex::new(&String::from(search_line)).unwrap();
+    let mut re_find_delimiter = Regex::new("").unwrap();
+
+    if re_filetype_md.is_match(&file.display().to_string()) {
+        filetype = String::from("md");
+        re_find_delimiter = Regex::new(r"^\s*#+\s+\S").unwrap();
+        let mut str_search_line: String = String::from(r"^\s*#+\s+");
+        str_search_line.push_str(&search_line);
+        str_search_line.push_str(r"\s*$");
+        re_search_line = Regex::new(&str_search_line).unwrap();
+    } else if re_filetype_rst.is_match(&file.display().to_string()) {
+        filetype = String::from("rst");
+        re_find_delimiter = Regex::new(r"^\s*([*]+|[#]+)\s*$").unwrap();
+    }
+
+    if let Ok(lines) = get_lines_from_a_file(&file) {
+        for line in lines {
+            if let Ok(line) = line {
+                if bool_after_block {
+                    temp_file_content.push_str(&line);
+                    temp_file_content.push_str("\u{000A}");
+                } else if bool_in_block {
+                    if re_find_delimiter.is_match(&line) {
+                        bool_after_block = true;
+                        if start_of_block == false {
+                            temp_file_content.push_str(&inject_line);
+                            temp_file_content.push_str("\u{000A}\u{000A}");
+                        }
+                    } 
+                    temp_file_content.push_str(&line);
+                    temp_file_content.push_str("\u{000A}");
+                } else if filetype == "md" {
+                    temp_file_content.push_str(&line);
+                    temp_file_content.push_str("\u{000A}");
+                    if re_search_line.is_match(&line) {
+                        bool_in_block = true;
+                        if start_of_block || replace_block {
+                            temp_file_content.push_str("\u{000A}");
+                            temp_file_content.push_str(&inject_line);
+                            temp_file_content.push_str("\u{000A}");
+                            if replace_block {
+                                bool_after_block = true;
+                                temp_file_content.push_str("\u{000A}");
+                            }
+                        }
+                    }
+                } else if filetype == "rst" {
+                    temp_file_content.push_str(&line);
+                    temp_file_content.push_str("\u{000A}");
+
+                    if re_search_line.is_match(&line) {
+                        bool_found_search_line = true;
+                    } else if bool_found_search_line {
+                        bool_in_block = true;
+                        if start_of_block || replace_block {
+                            temp_file_content.push_str("\u{000A}");
+                            temp_file_content.push_str(&inject_line);
+                            temp_file_content.push_str("\u{000A}");
+                            if replace_block {
+                                bool_after_block = true;
+                                temp_file_content.push_str("\u{000A}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    create_file(file, temp_file_content)?;
+    return Ok(());
+}
+
+// Based on https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
+fn get_lines_from_a_file<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}
+
+// This function turns a PathBuf object into a markdown link. If the Object is readable as a Markdown link or a Restructured Text
+// file, with the title as the first heading, then it will encapsulate the title in the relevant formatted link.
+fn formatted_title_and_file_of_record(pathbuf_of_record: &PathBuf, base_path: &PathBuf, format: &String) -> Result<String, Error> {
+    // Define Regexes
+    let re_title_md = Regex::new(r"^# (\d+\.?\s+.*)\s?$").unwrap();
+    let re_title_rst = Regex::new(r"^\s*[\*#]\s*+$").unwrap();
+
+    // Set flags
+    let mut past_delimiter: bool = false; // Used for RST only
+
+    // Calculate the relative path from the pathbuf to the base path
+    let relative_path_to = diff_paths(pathbuf_of_record, base_path)
+        .unwrap()
+        .display()
+        .to_string();
+
+    // Build a default "title" to return
+    let mut link_text: String = String::from(&relative_path_to);
+
+    // Replace it with a formatted version, if we are working with a known file format
+    if format == "md" {
+        link_text = String::from("[");
+        link_text.push_str(&relative_path_to);
+        link_text.push_str("](");
+        link_text.push_str(&relative_path_to);
+        link_text.push_str(")");    
+    } else if format == "rst" {
+        link_text = String::from(":doc:`");
+        link_text.push_str(&relative_path_to);
+        link_text.push_str(" <");
+        link_text.push_str(&relative_path_to);
+        link_text.push_str(">`");
+    }
+
+    // Then loop through the pathbuf to replace the file format
+    if let Ok(lines) = get_lines_from_a_file(pathbuf_of_record) {
+        for line in lines {
+            if let Ok(line) = line {
+                if format == "md" {
+                    if re_title_md.is_match(&line) {
+                        link_text = re_title_md.replace(&line, "[$1](").to_string();
+                        link_text.push_str(&relative_path_to);
+                        link_text.push_str(")");
+                        return Ok(link_text);
+                    }
+                } else if format == "rst" {
+                    if past_delimiter {
+                        link_text = String::from(":doc:`");
+                        link_text.push_str(&line);
+                        link_text.push_str(" <");
+                        link_text.push_str(&relative_path_to);
+                        link_text.push_str(">`");
+                        return Ok(link_text);
+                    } else if re_title_rst.is_match(&line) {
+                        past_delimiter = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we couldn't find the title, return at least a formatted link string
+    return Ok(link_text);
 }

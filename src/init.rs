@@ -260,7 +260,7 @@ fn load_template(language: String, format: String) -> Result<String, Error> {
         if format == "md" {
             return Ok("# NUMBER. TITLE\u{000A}\u{000A}Date: DATE\u{000A}\u{000A}## Statut\u{000A}\u{000A}STATUS\u{000A}\u{000A}## Le contexte\u{000A}\u{000A}C'est le Contexte.\u{000A}\u{000A}## Décision\u{000A}\u{000A}Pris une décision.\u{000A}\u{000A}## Conséquence\u{000A}\u{000A}C'est la conséquence de la décision.\u{000A}".to_string());
         } else if format == "ref" {
-            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}Proposed=\"Proposé\"\u{000A}Approved=\"Approuvé\"\u{000A}".to_string());
+            return Ok("Status=\"Statut\"\u{000A}Context=\"Le contexte\"\u{000A}Decision=\"Décision\"\u{000A}Consequence=\"Conséquence\"\u{000A}Proposed=\"Proposé\"\u{000A}Approved=\"Approuvé\"\u{000A}Superseded by #=\"Remplacé par #\"\u{000A}Supersedes #=\"Remplace #\"\u{000A}".to_string());
         } else {
             return Err(Error::new(
                 ErrorKind::Other,

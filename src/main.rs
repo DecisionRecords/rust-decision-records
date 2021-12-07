@@ -382,7 +382,7 @@ fn main() -> Result<(), io::Error> {
                 proposed,
                 approved,
                 config::load_config().unwrap(),
-            );
+            )?;
         }
         ("approve", Some(submatch)) => {
             let mut records: String = "".to_owned();
@@ -395,7 +395,7 @@ fn main() -> Result<(), io::Error> {
                     records.push_str(&record_item.to_string());
                 }
             }
-            decision_record::approve(records);
+            decision_record::approve(records)?;
         }
         ("proposed", Some(submatch)) => {
             let mut records: String = "".to_owned();
@@ -408,7 +408,7 @@ fn main() -> Result<(), io::Error> {
                     records.push_str(&record_item.to_string());
                 }
             }
-            decision_record::proposed(records);
+            decision_record::proposed(records)?;
         }
         ("link", Some(submatch)) => {
             let from_record: String = submatch.value_of("from").unwrap().to_string();
@@ -424,22 +424,22 @@ fn main() -> Result<(), io::Error> {
                     reason.push_str(&reason_item.to_string());
                 }
             }
-            decision_record::link(from_record, to_record, reason);
+            decision_record::link(from_record, to_record, reason)?;
         }
         ("deprecate", Some(submatch)) => {
             let from_record: String = submatch.value_of("from").unwrap().to_string();
             let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::deprecate(from_record, to_record);
+            decision_record::deprecate(from_record, to_record)?;
         }
         ("amend", Some(submatch)) => {
             let from_record: String = submatch.value_of("from").unwrap().to_string();
             let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::amend(from_record, to_record);
+            decision_record::amend(from_record, to_record)?;
         }
         ("supersede", Some(submatch)) => {
             let from_record: String = submatch.value_of("from").unwrap().to_string();
             let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::supersede(from_record, to_record);
+            decision_record::supersede(from_record, to_record)?;
         }
         _ => println!("decision-record command not recognised. Please call --help for options."),
     }
