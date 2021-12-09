@@ -1,5 +1,6 @@
-on: [push]
-name: build
+name: Run Unit Tests
+on: 
+  - push
 jobs:
   build:
     runs-on: ubuntu-latest

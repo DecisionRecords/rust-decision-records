@@ -1,0 +1,111 @@
+# Based on https://alican.codes/rust-github-actions
+
+name: Build Binaries
+on: 
+  release:
+    types: # This configuration does not affect the page_build event above
+      - created
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Build and prepare for releases
+        run: |
+          cargo build --all --release && \
+          strip target/release/decision-record && \
+          chmod +x target/release/decision-record && \
+          mkdir -p .package/usr/bin && \
+          cp target/release/decision-record target/release/decision-record_amd64 && \
+          cp target/release/decision-record .package/usr/bin/decision-record
+
+      - name: Release Binary
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            target/release/decision-record_amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: jiro4989/build-deb-action@v2
+        with:
+          package: decision-record
+          package_root: .package
+          maintainer: JonTheNiceGuy
+          version: ${{ github.ref }}
+          arch: 'amd64'
+          desc: 'Decision Record script, from https://github.com/DecisionRecords/rust-decision-records'
+
+      - uses: jiro4989/build-rpm-action@v2
+        with:
+          summary: 'Decision Record script'
+          package: decision-record
+          package_root: .package
+          maintainer: JonTheNiceGuy
+          version: ${{ github.ref }}
+          arch: 'x86_64'
+          desc: 'Decision Record script, from https://github.com/DecisionRecords/rust-decision-records'
+
+
+  build-win:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Build
+        run: cargo build --all --release
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: target/release/decision-record.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+          default: true
+          override: true
+
+      - name: Build for mac
+        run: cargo build --all --release && strip target/release/decision-record && mv target/release/decision-record target/release/decision-record_darwin
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            target/release/decision-record_darwin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
