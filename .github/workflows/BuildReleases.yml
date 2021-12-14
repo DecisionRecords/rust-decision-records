@@ -1,17 +1,41 @@
-# Based on https://alican.codes/rust-github-actions
+name: Create Release
 
-name: Build Binaries
-on: 
+on:
   push:
     tags:
-      - "v*"
-jobs:
-  build:
-    runs-on: ubuntu-latest
+      - 'v*'
 
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v1
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+
+  build_release:
+    name: Build Release
+    needs: create_release
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            release_suffix: _amd64
+          - os: macos-latest
+            release_suffix: _darwin
+          - os: windows-latest
+            release_suffix: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Install latest rust toolchain
         uses: actions-rs/toolchain@v1
@@ -21,6 +45,7 @@ jobs:
           override: true
 
       - name: Build and prepare for releases
+        if: matrix.os == 'ubuntu-latest'
         run: |
           cargo build --all --release && \
           strip target/release/decision-record && \
@@ -30,6 +55,7 @@ jobs:
           cp target/release/decision-record .package/usr/bin/decision-record
 
       - name: Build .deb
+        if: matrix.os == 'ubuntu-latest'
         uses: jiro4989/build-deb-action@v2
         with:
           package: decision-record
@@ -40,6 +66,7 @@ jobs:
           desc: 'Decision Record script, from https://github.com/DecisionRecords/rust-decision-records'
 
       - name: Build .rpm
+        if: matrix.os == 'ubuntu-latest'
         uses: jiro4989/build-rpm-action@v2
         with:
           summary: 'Decision Record script'
@@ -49,64 +76,17 @@ jobs:
           version: ${{ github.ref }}
           arch: 'x86_64'
           desc: 'Decision Record script, from https://github.com/DecisionRecords/rust-decision-records'
-
-      - name: Release binary and packages
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            target/release/decision-record_amd64
-            *.deb
-            *.rpm
-
-  build-win:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          default: true
-          override: true
-
-      - name: Build
-        run: cargo build --all --release
-
-      - name: Release binary
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            target/release/decision-record.exe
-
-  build-mac:
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-          default: true
-          override: true
-
-      - name: Build for mac
+      
+      - name: Run Mac Build
+        if: matrix.os == 'macos-latest'
         run: cargo build --all --release && strip target/release/decision-record && mv target/release/decision-record target/release/decision-record_darwin
 
-      - name: Release binary
-        uses: marvinpinto/action-automatic-releases@latest
+      - name: Run Windows Build
+        if: matrix.os == 'windows-latest'
+        run: cargo build --all --release
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            target/release/decision-record_darwin
+          tag_name: ${{ needs.create_release.outputs.tag-name }}
+          files: decision-record${{ matrix.release_suffix }}
