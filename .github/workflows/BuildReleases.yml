@@ -89,4 +89,13 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.create_release.outputs.tag-name }}
-          files: decision-record${{ matrix.release_suffix }}
+          files: target/release/decision-record${{ matrix.release_suffix }}
+
+      - name: Release
+        if: matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create_release.outputs.tag-name }}
+          files: |
+            decision-record*.deb
+            decision-record*.rpm
