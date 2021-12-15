@@ -1,6 +1,6 @@
 # Decision Records Rust Application
 
-_**WARNING THIS IS INCOMPLETE, AND SHOULD NOT BE USED YET!**_
+_**WARNING THIS IS A VERY EARLY ALPHA! USE ACCORDINGLY!**_
 
 This application is intended to automate the process of adding and updating Decision Records
 (DR), sometimes known as "Architectural Decision Records" (ADR). A DR is a simple file which
