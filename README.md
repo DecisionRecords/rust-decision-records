@@ -12,10 +12,10 @@ should be fairly commonplace.
 <!--
 ## Running the script
 
-You are expected to run `node decision-record.js init` to create a directory structure, then
-`node decision-record.js new Decision to use foo` which will create a file called
+You are expected to run `decision-record init` to create a directory structure, then
+`decision-record new Decision to use foo` which will create a file called
 `doc/decision_records/0001-decision-to-use-foo.md` which produces a specific template. You may
-choose to then run `node decision-record.js new --supersede 1 Decision to use bar instead of foo`
+choose to then run `decision-record new --supersede 1 Decision to use bar instead of foo`
 which will create the file `doc/decision_records/0002-decision-to-use-bar-instead-of-foo.md`
 which has a link showing that this record supersedes the previous record.
 
@@ -84,7 +84,8 @@ has the capability to provide additional language support, some common "switches
 records, and has a full set of unit tests, using [Jest](https://jestjs.io/).
 
 In addition, the longer-term aim for this is to be functionally the SAME as using a similar,
-as-yet unwritten script in Powershell, or Python, or in 
+as-yet unwritten script in
+[Javascript](https://github.com/DecisionRecords/javascript-decision-records), or in 
 [Bash](https://github.com/DecisionRecords/bash-decision-records)
 
 ---
