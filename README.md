@@ -9,7 +9,6 @@ made, and what implications it may have. These files reside in a specific direct
 a specific naming structure. Linking between documents is recommended, and replacing documents
 should be fairly commonplace.
 
-<!--
 ## Running the script
 
 You are expected to run `decision-record init` to create a directory structure, then
@@ -19,8 +18,7 @@ choose to then run `decision-record new --supersede 1 Decision to use bar instea
 which will create the file `doc/decision_records/0002-decision-to-use-bar-instead-of-foo.md`
 which has a link showing that this record supersedes the previous record.
 
-Additional options will be available in the help, found when you run `decision-record.sh help`.
--->
+Additional options will be available in the help, found when you run `decision-record help`.
 
 ## Language support and file paths
 
@@ -81,12 +79,13 @@ This will be injected into the link text whenever a record link is performed.
 This script is inspired by the [ADR-Tools](https://github.com/npryce/adr-tools) which appear to
 have been abandoned. This also intends to extend ADR-Tools beyond it's current limitations, and
 has the capability to provide additional language support, some common "switches" around new
-records, and has a full set of unit tests, using [Jest](https://jestjs.io/).
+records, and has a full set of testing, using the built-in test functionality and BATS for
+functional testing.
 
-In addition, the longer-term aim for this is to be functionally the SAME as using a similar,
-as-yet unwritten script in
+In addition, the longer-term aim for this is to be functionally the SAME as using the similar,
+as-yet unreleased scripts written in
 [Javascript](https://github.com/DecisionRecords/javascript-decision-records), or in 
-[Bash](https://github.com/DecisionRecords/bash-decision-records)
+[Bash](https://github.com/DecisionRecords/bash-decision-records).
 
 ---
 **Licensed under the Zero-Clause BSD License (0BSD)**
