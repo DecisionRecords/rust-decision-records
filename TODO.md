@@ -13,6 +13,9 @@ Oh my word, there are SO MANY things here.
 * [ ] Consider allowing non-numbered DR creation action (e.g. `doc/decision_record/some-decision-record.md` instead of `doc/decision_record/0001-some-decision-record.md`)
 * [ ] Create more language strings!
 * [ ] Create testing!
+  * [ ] Unit Testing needed
+  * [ ] DocTests required
+  * [ ] Consistent Functional Testing (across all DecisionRecords repos) with BATS is also desired!
 
 ## DONE Items
 
