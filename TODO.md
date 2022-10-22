@@ -12,6 +12,7 @@ Oh my word, there are SO MANY things here.
 * [ ] Change status ("proposed", "accepted") of a DR (code exists to get to that function, but the function isn't written)
 * [ ] Consider allowing non-numbered DR creation action (e.g. `doc/decision_record/some-decision-record.md` instead of `doc/decision_record/0001-some-decision-record.md`)
 * [ ] Create more language strings!
+* [ ] Create testing!
 
 ## DONE Items
 
