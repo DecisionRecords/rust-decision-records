@@ -1,447 +1,381 @@
-use std::env;
-use std::io;
-use std::path::Path;
+// use std::env;
+// use std::io;
+// use std::path::{Path, PathBuf};
 
 extern crate clap;
 extern crate pathdiff;
 
-use clap::{App, Arg};
-use pathdiff::diff_paths;
+use clap::{Parser, Subcommand};
+// use pathdiff::diff_paths;
 
-mod config;
-mod decision_record;
-mod init;
+// mod config;
+// mod decision_record;
+// mod init;
 
-fn main() -> Result<(), io::Error> {
-    let app = App::new("decision-record")
-    .version("0.0.1")
-    .author("Jon Spriggs <jon@sprig.gs>")
-    .about("Making Decision Records easier. See https://github.com/DecisionRecords/ for more details.")
-    .subcommand(
-      App::new("init")
-        .about("Initializes the directory structures for new decision records.")
-        .arg(
-          Arg::with_name("doc_path")
-            .help("The directory to create your decision records in.")
-            .default_value("")
-            .takes_value(true)
-            .empty_values(true)
-            .index(1),
-        )
-        .arg(
-          Arg::with_name("template_file")
-            .help("Set the filename prefix for the Decision Record template to use.")
-            .long("template")
-            .short("t")
-            .default_value("template"),
-        )
-        .arg(
-          Arg::with_name("format")
-            .help("Set the Decision Record template format to use.")
-            .long("format")
-            .short("f")
-            .default_value("md"),
-        )
-        .arg(
-          Arg::with_name("language")
-            .help("The two or four letter code defining the language to prefer.")
-            .long("language")
-            .short("l")
-            .default_value("en"),
-        )
-        .arg(
-          Arg::with_name("template_directory")
-            .help("The template directory to use. [default: DOC_PATH/.template/]")
-            .long("template-directory")
-            .short("d"),
-        )
-        .arg(
-          Arg::with_name("adr_format")
-            .help("Use the old ADR format for finding the directory structure.")
-            .long("adr"),
-        )
-        .arg(
-          Arg::with_name("default_proposed")
-            .help("Default new records as 'proposed' rather than 'accepted'.")
-            .long("default-proposed")
-            .short("p"),
-        )
-        .arg(
-          Arg::with_name("force")
-            .help("Force overwriting of an existing config.")
-            .long("force"),
-        ),
-    )
-    .subcommand(
-      App::new("new")
-        .about("Creates a new decision record.")
-        .arg(
-          Arg::with_name("title")
-            .help("The title of the new record")
-            .takes_value(true)
-            .required(true)
-            .multiple(true)
-        )
-        .arg(
-          Arg::with_name("supersede")
-            .help("Note the fact this record supersedes a previous Decision Record. Can be used several times.")
-            .long("supersede...")
-            .short("s")
-            .visible_alias("supersedes...")
-            .alias("supercedes...")
-            .alias("supercede...")
-            .takes_value(true)
-            .value_name("record")
-            .multiple(true)
-        )
-        .arg(
-          Arg::with_name("deprecate")
-            .help("Note the fact this record deprecates a previous Decision Record. Can be used several times.")
-            .long("deprecate...")
-            .visible_alias("deprecates...")
-            .short("d")
-            .takes_value(true)
-            .value_name("record")
-            .multiple(true)
-        )
-        .arg(
-          Arg::with_name("amend")
-            .help("Note the fact this record amends a previous Decision Record. Can be used several times.")
-            .long("amend...")
-            .visible_alias("amends...")
-            .short("a")
-            .takes_value(true)
-            .value_name("record")
-            .multiple(true)
-        )
-        .arg(
-          Arg::with_name("link")
-            .help("Note the fact this record is linked to a previous Decision Record. Can be used several times.")
-            .long("link...")
-            .visible_alias("links...")
-            .visible_alias("linked...")
-            .short("l")
-            .takes_value(true)
-            .value_name("record")
-            .multiple(true)
-        )
-        .arg(
-          Arg::with_name("proposed")
-            .help("Sets the fact that this decision record is classed as Proposed.")
-            .long("proposed")
-            .visible_alias("propose")
-            .short("P")
-            .conflicts_with("approved")
-        )
-        .arg(
-          Arg::with_name("approved")
-            .help("Sets the fact that this decision record is classed as Approved.")
-            .long("approved")
-            .visible_alias("approve")
-            .visible_alias("accept")
-            .visible_alias("accepted")
-            .short("A")
-            .conflicts_with("proposed")
-        )
-    )
-    .subcommand(
-      App::new("approve")
-        .about("Change the status of a proposed Decision Record to approved.")
-        .visible_alias("accept")
-        .arg(
-          Arg::with_name("record")
-            .help("The record or records to change the status to approved")
-            .takes_value(true)
-            .required(true)
-            .multiple(true)
-        )
-    )
-    .subcommand(
-      App::new("proposed")
-        .about("Change the status of an approved Decision Record back to proposed.")
-        .arg(
-          Arg::with_name("record")
-            .help("The record or records to change the status to proposed")
-            .takes_value(true)
-            .required(true)
-            .multiple(true)
-        )
-    )
-    .subcommand(
-      App::new("link")
-        .about("Link two decision records.")
-        .arg(
-          Arg::with_name("from")
-            .help("Link from a record")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(
-          Arg::with_name("to")
-            .help("Link to a record")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(
-          Arg::with_name("reason")
-            .help("The reason to link the two records")
-            .takes_value(true)
-            .multiple(true)
-        )
-    )
-    .subcommand(
-      App::new("deprecate")
-        .about("Change the status of a Decision Record to deprecated.")
-        .arg(
-          Arg::with_name("from")
-            .help("Link from a record")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(
-          Arg::with_name("to")
-            .help("Link to a record")
-            .takes_value(true)
-            .required(true)
-        )
-    )
-    .subcommand(
-      App::new("amend")
-        .about("Amend a Decision Record with an additional Decision Record.")
-        .arg(
-          Arg::with_name("from")
-            .help("Link from a record")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(
-          Arg::with_name("to")
-            .help("Link to a record")
-            .takes_value(true)
-            .required(true)
-        )
-    )
-    .subcommand(
-      App::new("supersede")
-        .about("Change the status of a Decision Record to superseded.")
-        .alias("supercede")
-        .arg(
-          Arg::with_name("from")
-            .help("Link from a record")
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(
-          Arg::with_name("to")
-            .help("Link to a record")
-            .takes_value(true)
-            .required(true)
-        )
-    )
-    .get_matches();
+// TODO: OK, so I ripped a LOAD out of this, and it needs to be put back in using the new format! Good luck Jon!
 
-    match app.subcommand() {
-        ("init", Some(submatch)) => {
-            let root_dir = env::current_dir()?;
+// Making Decision Records easier. See 
+// https://github.com/DecisionRecords/ for more details.
+//
+// Decision Records are a method of storing the reasons why decisions were
+// made. This tool helps you to create those records, using a standard naming
+// convention and method of updating those records.
+#[derive(Parser)]
+#[command(author)]
+#[command(version)]
+#[command(about)]
+#[command(long_about)]
+#[command(propagate_version = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-            let mut force = false;
-            if submatch.is_present("force") {
-                force = true;
-            }
+#[derive(Subcommand)]
+enum Commands {
+    /// Initializes the directory structures for new decision records.
+    Init {
+        /// The directory to create your decision records in.
+        #[arg(
+            long,
+            alias = "doc_path",
+            value_name = "PATH",
+            default_value = "."
+        )]
+        doc_path: String,
+        /// Set the filename prefix for the Decision Record template to use.
+        #[arg(
+            long,
+            alias = "template_file",
+            short = 't',
+            value_name = "FILENAME",
+            default_value = "template"
+        )]
+        template_file: String,
+        /// Set the Decision Record template format to use.
+        #[arg(
+            long,
+            short = 'f',
+            value_name = "FORMAT",
+            value_parser(["md", "rst"]),
+            default_value = "md"
+        )]
+        format: String,
+        /// The two or four letter code defining the language to prefer.
+        #[arg(
+            long,
+            short = 'l',
+            value_name = "LANGUAGE",
+            default_value = "en"
+        )]
+        language: String,
+        /// The template directory to use. [default: DOC_PATH/.template/]
+        #[arg(
+            long,
+            alias = "template_directory",
+            short = 'd',
+            value_name = "DIRECTORY",
+            required = false,
+            default_value = "./.template/"
+        )]
+        template_directory: String,
+        /// Use the old ADR format for finding the directory structure.
+        #[arg(
+            long,
+            value_parser = clap::builder::BoolishValueParser::new(),
+            default_value = "false"
+        )]
+        adr_format: bool,
+        /// Default new records as 'proposed' rather than 'accepted'.
+        #[arg(
+            long,
+            alias = "default_proposed",
+            short = 'p',
+            value_parser = clap::builder::BoolishValueParser::new(),
+            default_value = "false"
+        )]
+        default_proposed: bool,
+        /// Force overwriting of an existing config.
+        #[arg(
+            long,
+            value_parser = clap::builder::BoolishValueParser::new(),
+            default_value = "false"
+        )]
+        force: bool,
+    },
 
-            let adr_format: bool;
-            match submatch.occurrences_of("adr_format") {
-                0 => adr_format = false,
-                _ => adr_format = true,
-            }
-            if adr_format {
-                let mut doc_path = root_dir.join("doc").join("adr");
-                if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
-                    doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
-                }
+    /// Creates a new decision record.
+    #[clap(visible_alias = "create")]
+    New {
+        /// This record supersedes the identified Decision Record.
+        #[arg(
+            long,
+            aliases = ["supercede", "supersedes", "supercedes"],
+            short,
+            value_name = "RECORD_ID",
+            num_args = 1
+        )]
+        supersede: Vec<u64>,
+        /// This record deprecates the identified Decision Record.
+        #[arg(
+            long,
+            aliases = ["deprecates"],
+            short,
+            value_name = "RECORD_ID",
+            num_args = 1
+        )]
+        deprecate: Vec<u64>,
+        /// This record amends the identified Decision Record.
+        #[arg(
+            long,
+            aliases = ["amends"],
+            short,
+            value_name = "RECORD_ID",
+            num_args = 1
+        )]
+        amend: Vec<u64>,
+        /// This record is linked to the identified Decision Record.
+        #[arg(
+            long,
+            aliases = ["links"],
+            short = 'l',
+            value_name = "RECORD_ID",
+            num_args = 1
+        )]
+        link: Vec<u64>,
+        /// Class this record as Proposed. Conflicts with "--approved".
+        #[arg(
+            long,
+            aliases = ["propose"],
+            short = 'P',
+            conflicts_with = "approved"
+        )]
+        proposed: bool,
+        /// Class this record as Approved. Conflicts with "--proposed".
+        #[arg(
+            long,
+            aliases = ["approve", "accept", "accepted"],
+            short = 'A',
+            conflicts_with = "proposed"
+        )]
+        approved: bool,
+        /// The title of the new record.
+        #[arg(
+            value_name = "A TITLE",
+            required = true,
+            trailing_var_arg = true
+        )]
+        title: Vec<String>
+    },
+    /// Change the status of a proposed Decision Record to "approved".
+    #[clap(visible_alias = "accept")]
+    #[clap(visible_alias = "approved")]
+    #[clap(visible_alias = "promote")]
+    Approve {
+        /// The record or records to change the status to approved
+        #[arg(
+            value_name = "RECORD_ID",
+            required = true,
+            trailing_var_arg = true
+        )]
+        records: Vec<u64>
+    },
+    /// Change the status of a proposed Decision Record to "proposed".
+    #[clap(visible_alias = "propose")]
+    #[clap(visible_alias = "demote")]
+    Proposed {
+        /// The record or records to change the status to proposed
+        #[arg(
+            value_name = "RECORD_ID",
+            required = true,
+            trailing_var_arg = true
+        )]
+        records: Vec<u64>
+    },
+    /// Link two decision records.
+    Link {
+        /// Link from a Decision Record ID
+        #[arg(
+            value_name = "FROM_RECORD_ID",
+            required = true
+        )]
+        from: u64,
 
-                init::short_init(root_dir, doc_path, force)?;
-            } else {
-                let mut doc_path = root_dir.join("doc").join("decision_records");
-                if !submatch.value_of("doc_path").unwrap_or_default().is_empty() {
-                    doc_path = root_dir.join(submatch.value_of("doc_path").unwrap_or_default());
-                }
+        /// Link to a Decision Record ID
+        #[arg(
+            value_name = "TO_RECORD_ID",
+            required = true
+        )]
+        to: u64,
+        /// The reason to link two records.
+        #[arg(
+            value_name = "REASON",
+            required = true,
+            trailing_var_arg = true
+        )]
+        reason: Vec<String>
+    },
+    /// Deprecate one Decision Record with a second Decision Record.
+    Deprecate {
+        /// Link from a Decision Record ID
+        #[arg(
+            value_name = "FROM_RECORD_ID",
+            required = true
+        )]
+        from: u64,
 
-                let str_root_dir = root_dir.display().to_string();
-                let str_doc_path = doc_path.display().to_string();
-                let absolute_root_dir = Path::new(&str_root_dir);
-                let absolute_doc_path = Path::new(&str_doc_path);
+        /// Link to a Decision Record ID
+        #[arg(
+            value_name = "TO_RECORD_ID",
+            required = true
+        )]
+        to: u64
+    },
+    /// Amend one Decision Record with a second Decision Record.
+    Amend {
+        /// Link from a Decision Record ID
+        #[arg(
+            value_name = "FROM_RECORD_ID",
+            required = true
+        )]
+        from: u64,
 
-                let relative_doc_path = diff_paths(absolute_doc_path, absolute_root_dir)
-                    .unwrap()
-                    .display()
-                    .to_string();
+        /// Link to a Decision Record ID
+        #[arg(
+            value_name = "TO_RECORD_ID",
+            required = true
+        )]
+        to: u64
+    },
+    /// Supersed one Decision Record with a second Decision Record.
+    #[clap(alias = "supercede")]
+    Supersede {
+        /// Link from a Decision Record ID
+        #[arg(
+            value_name = "FROM_RECORD_ID",
+            required = true
+        )]
+        from: u64,
 
-                let template_file = submatch.value_of("template_file").unwrap_or_default();
-                let format = submatch.value_of("format").unwrap_or_default();
-                let language = submatch.value_of("language").unwrap_or_default();
-
-                let default_template_directory = &Path::new(&relative_doc_path)
-                    .join(".template")
-                    .display()
-                    .to_string();
-
-                let template_directory = submatch
-                    .value_of("template_directory")
-                    .unwrap_or(default_template_directory);
-
-                let mut default_proposed = false;
-                if submatch.is_present("default_proposed") {
-                    default_proposed = true;
-                }
-
-                init::init(
-                    root_dir,
-                    doc_path,
-                    template_file,
-                    format,
-                    language,
-                    template_directory,
-                    default_proposed,
-                    force,
-                )?;
-            }
-        }
-        ("new", Some(submatch)) => {
-            let mut title: String = "".to_owned();
-            if submatch.is_present("title") {
-                let title_items = submatch.values_of("title").unwrap();
-                for ref mut title_item in title_items {
-                    if !title.is_empty() {
-                        title.push(' ');
-                    }
-                    title.push_str(&title_item.to_string());
-                }
-            }
-
-            let mut supersede: String = "".to_owned();
-            if submatch.is_present("supersede") {
-                let supersede_items = submatch.values_of("supersede").unwrap();
-                for ref mut supersede_item in supersede_items {
-                    if !supersede.is_empty() {
-                        supersede.push(',');
-                    }
-                    supersede.push_str(&supersede_item.to_string());
-                }
-            }
-
-            let mut deprecate: String = "".to_owned();
-            if submatch.is_present("deprecate") {
-                let deprecate_items = submatch.values_of("deprecate").unwrap();
-                for ref mut deprecate_item in deprecate_items {
-                    if !deprecate.is_empty() {
-                        deprecate.push(',');
-                    }
-                    deprecate.push_str(&deprecate_item.to_string())
-                }
-            }
-
-            let mut amend: String = "".to_owned();
-            if submatch.is_present("amend") {
-                let amend_items = submatch.values_of("amend").unwrap();
-                for ref mut amend_item in amend_items {
-                    if !amend.is_empty() {
-                        amend.push(',');
-                    }
-                    amend.push_str(&amend_item.to_string())
-                }
-            }
-
-            let mut link: String = "".to_owned();
-            if submatch.is_present("link") {
-                let link_items = submatch.values_of("link").unwrap();
-                for ref mut link_item in link_items {
-                    if !link.is_empty() {
-                        link.push(',');
-                    }
-                    link.push_str(&link_item.to_string())
-                }
-            }
-
-            let mut proposed = false;
-            if submatch.is_present("proposed") {
-                proposed = true;
-            }
-
-            let mut approved = false;
-            if submatch.is_present("approved") {
-                approved = true;
-            }
-
-            decision_record::new_record(
-                title,
-                supersede,
-                deprecate,
-                amend,
-                link,
-                proposed,
-                approved,
-                config::load_config().unwrap(),
-            )?;
-        }
-        ("approve", Some(submatch)) => {
-            let mut records: String = "".to_owned();
-            if submatch.is_present("record") {
-                let record_items = submatch.values_of("record").unwrap();
-                for ref mut record_item in record_items {
-                    if !records.is_empty() {
-                        records.push(',');
-                    }
-                    records.push_str(&record_item.to_string());
-                }
-            }
-            decision_record::approve(records)?;
-        }
-        ("proposed", Some(submatch)) => {
-            let mut records: String = "".to_owned();
-            if submatch.is_present("record") {
-                let record_items = submatch.values_of("record").unwrap();
-                for ref mut record_item in record_items {
-                    if !records.is_empty() {
-                        records.push(',');
-                    }
-                    records.push_str(&record_item.to_string());
-                }
-            }
-            decision_record::proposed(records)?;
-        }
-        ("link", Some(submatch)) => {
-            let from_record: String = submatch.value_of("from").unwrap().to_string();
-            let to_record: String = submatch.value_of("to").unwrap().to_string();
-
-            let mut reason: String = "".to_owned();
-            if submatch.is_present("reason") {
-                let reason_items = submatch.values_of("reason").unwrap();
-                for ref mut reason_item in reason_items {
-                    if !reason.is_empty() {
-                        reason.push(' ');
-                    }
-                    reason.push_str(&reason_item.to_string());
-                }
-            }
-            decision_record::link(from_record, to_record, reason)?;
-        }
-        ("deprecate", Some(submatch)) => {
-            let from_record: String = submatch.value_of("from").unwrap().to_string();
-            let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::deprecate(from_record, to_record)?;
-        }
-        ("amend", Some(submatch)) => {
-            let from_record: String = submatch.value_of("from").unwrap().to_string();
-            let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::amend(from_record, to_record)?;
-        }
-        ("supersede", Some(submatch)) => {
-            let from_record: String = submatch.value_of("from").unwrap().to_string();
-            let to_record: String = submatch.value_of("to").unwrap().to_string();
-            decision_record::supersede(from_record, to_record)?;
-        }
-        _ => println!("decision-record command not recognised. Please call --help for options."),
+        /// Link to a Decision Record ID
+        #[arg(
+            value_name = "TO_RECORD_ID",
+            required = true
+        )]
+        to: u64
     }
-    Ok(())
+}
+
+fn main() {
+    let args = Cli::parse();
+    
+    match args.command {
+        Commands::Init {
+            doc_path,
+            template_file,
+            format,
+            language,
+            template_directory,
+            adr_format,
+            default_proposed,
+            force
+        } => {
+            println!("doc_path          : {}", doc_path);
+            println!("template_file     : {}", template_file);
+            println!("format            : {}", format);
+            println!("language          : {}", language);
+            println!("template_directory: {}", template_directory);
+            println!("adr_format        : {}", adr_format);
+            println!("default_proposed  : {}", default_proposed);
+            println!("force             : {}", force);
+        }
+        Commands::New {
+            title,
+            supersede,
+            deprecate,
+            amend,
+            link,
+            proposed,
+            approved
+        } => {
+            let the_title: String = _merge_vec_of_strings_to_string(title);
+            let supersedes: String = _merge_vec_of_integer_to_string(supersede);
+            let deprecates: String = _merge_vec_of_integer_to_string(deprecate);
+            let amends: String = _merge_vec_of_integer_to_string(amend);
+            let links: String = _merge_vec_of_integer_to_string(link);
+
+            println!("Title: {}", the_title);
+            println!("Supersede: {}", supersedes);
+            println!("Deprecate: {}", deprecates);
+            println!("Amends: {}", amends);
+            println!("Links: {}", links);
+            println!("Proposed: {}", proposed);
+            println!("Approved: {}", approved);
+        }
+        Commands::Approve { records } => {
+            let the_records = _merge_vec_of_integer_to_string(records);
+            println!("Records: {}", the_records);
+        }
+        Commands::Proposed { records } => {
+            let the_records = _merge_vec_of_integer_to_string(records);
+            println!("Records: {}", the_records);
+        }
+        Commands::Link {
+            from,
+            to,
+            reason
+        } => {
+            let the_reason = _merge_vec_of_strings_to_string(reason);
+            println!("From: {}", from);
+            println!("To: {}", to);
+            println!("Reason: {}", the_reason);
+        }
+        Commands::Deprecate {
+            from,
+            to
+        } => {
+            println!("From: {}", from);
+            println!("To: {}", to);
+        }
+        Commands::Amend {
+            from,
+            to
+        } => {
+            println!("From: {}", from);
+            println!("To: {}", to);
+        }
+        Commands::Supersede {
+            from,
+            to
+        } => {
+            println!("From: {}", from);
+            println!("To: {}", to);
+        }
+    }
+}
+
+fn _merge_vec_of_strings_to_string(
+    source: Vec<String>
+) -> String {
+    let mut res: String = "".to_owned();
+    for ref mut source_item in source {
+        if !res.is_empty() {
+            res.push(' ');
+        }
+        res.push_str(&source_item.to_string());
+    }
+    return res;
+}
+
+fn _merge_vec_of_integer_to_string(
+    source: Vec<u64>
+) -> String {
+    let mut res: String = "".to_owned();
+    for ref mut source_item in source {
+        if !res.is_empty() {
+            res.push(' ');
+        }
+        res.push_str(&source_item.to_string());
+    }
+    return res;
 }
