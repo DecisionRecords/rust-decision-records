@@ -119,15 +119,106 @@ pub fn new_record(
 
 // Linking activities, referenced either above, or in the main.rs
 pub fn approve(records: String) -> Result<(), Error> {
-    println!("This feature is not yet enabled. A debugging statement will follow.");
-    println!("records: {}", records);
-    return Ok(());
+    let config: config::Config = config::load_config().unwrap();
+    let config_record_path = std::path::PathBuf::from(&config.record_path);
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+
+    for record in records.split_terminator(',') {
+        let record_number: i32 = match record.parse() {
+            Ok(num) => num,
+            Err(_) => {
+                eprintln!("Invalid record number: {}", record);
+                continue;
+            }
+        };
+
+        let pathbuf_record = find_record(record_number, &config_record_path)?;
+        let today = Local::now().format("%Y-%m-%d").to_string();
+        let approval_line = format!("Approved on {}", today);
+
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record,
+            &translated_status_header_string,
+            &approval_line,
+            true,
+            false,
+            &[],
+        )?;
+
+        println!("Record {} approved.", record_number);
+    }
+
+    Ok(())
+}
+
+// Linking activities, referenced either above, or in the main.rs
+pub fn reject(records: String) -> Result<(), Error> {
+    let config: config::Config = config::load_config().unwrap();
+    let config_record_path = std::path::PathBuf::from(&config.record_path);
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+
+    for record in records.split_terminator(',') {
+        let record_number: i32 = match record.parse() {
+            Ok(num) => num,
+            Err(_) => {
+                eprintln!("Invalid record number: {}", record);
+                continue;
+            }
+        };
+
+        let pathbuf_record = find_record(record_number, &config_record_path)?;
+        let today = Local::now().format("%Y-%m-%d").to_string();
+        let rejection_line = format!("Rejected on {}", today);
+
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record,
+            &translated_status_header_string,
+            &rejection_line,
+            true,
+            false,
+            &[],
+        )?;
+
+        println!("Record {} rejected.", record_number);
+    }
+
+    Ok(())
 }
 
 pub fn proposed(records: String) -> Result<(), Error> {
-    println!("This feature is not yet enabled. A debugging statement will follow.");
-    println!("records: {}", records);
-    return Ok(());
+    let config: config::Config = config::load_config().unwrap();
+    let config_record_path = std::path::PathBuf::from(&config.record_path);
+    let translated_status_header_string =
+        translate_string("Status".to_string(), &config.template_references)?;
+
+    for record in records.split_terminator(',') {
+        let record_number: i32 = match record.parse() {
+            Ok(num) => num,
+            Err(_) => {
+                eprintln!("Invalid record number: {}", record);
+                continue;
+            }
+        };
+
+        let pathbuf_record = find_record(record_number, &config_record_path)?;
+        let today = Local::now().format("%Y-%m-%d").to_string();
+        let proposed_line = format!("Proposed on {}", today);
+
+        inject_text_in_status_block_of_a_record(
+            &pathbuf_record,
+            &translated_status_header_string,
+            &proposed_line,
+            true,
+            false,
+            &[],
+        )?;
+
+        println!("Record {} proposed.", record_number);
+    }
+
+    Ok(())
 }
 
 pub fn link(from: String, to: String, reason: String) -> Result<(), Error> {

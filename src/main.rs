@@ -157,6 +157,18 @@ fn main() -> Result<(), io::Error> {
         )
     )
     .subcommand(
+      App::new("reject")
+        .about("Change the status of a proposed Decision Record to rejected.")
+        .visible_alias("deny")
+        .arg(
+          Arg::with_name("record")
+            .help("The record or records to change the status to approved")
+            .takes_value(true)
+            .required(true)
+            .multiple(true)
+        )
+    )
+    .subcommand(
       App::new("proposed")
         .about("Change the status of an approved Decision Record back to proposed.")
         .arg(
@@ -397,6 +409,19 @@ fn main() -> Result<(), io::Error> {
             }
             decision_record::approve(records)?;
         }
+        ("reject", Some(submatch)) => {
+          let mut records: String = "".to_owned();
+          if submatch.is_present("record") {
+              let record_items = submatch.values_of("record").unwrap();
+              for ref mut record_item in record_items {
+                  if !records.is_empty() {
+                      records.push(',');
+                  }
+                  records.push_str(&record_item.to_string());
+              }
+          }
+          decision_record::reject(records)?;
+      }
         ("proposed", Some(submatch)) => {
             let mut records: String = "".to_owned();
             if submatch.is_present("record") {
