@@ -31,7 +31,7 @@ pub fn new_record(
 
     // Default values here
     let mut max_file_prefix: i32 = 0;
-    let mut status: String = String::from(&config.default_status);
+    let mut status: String = format!("{} on DATE", String::from(&config.default_status));
     let mut new_file_content: String = String::from(&config.template_string);
     let mut absolute_filename: PathBuf = PathBuf::from(&config.record_path.display().to_string());
     let date_now = Local::now().format("%Y-%m-%d");
@@ -67,9 +67,9 @@ pub fn new_record(
 
     // Set the status string, if the status is forced (otherwise use the default, pulled from the config)
     if proposed {
-        status = "Proposed".to_string();
+        status = "Proposed on DATE".to_string();
     } else if approved {
-        status = "Approved".to_string();
+        status = "Approved on DATE".to_string();
     }
 
     // Apply translation to the status value.
@@ -88,12 +88,12 @@ pub fn new_record(
         .replace_all(&String::from(new_file_content), &String::from(&title))
         .parse()
         .unwrap();
-    new_file_content = re_date
-        .replace_all(&String::from(new_file_content), date_now.to_string())
-        .parse()
-        .unwrap();
     new_file_content = re_status
         .replace_all(&String::from(new_file_content), &String::from(&status))
+        .parse()
+        .unwrap();
+    new_file_content = re_date
+        .replace_all(&String::from(new_file_content), date_now.to_string())
         .parse()
         .unwrap();
 
@@ -124,6 +124,23 @@ pub fn approve(records: String) -> Result<(), Error> {
     let translated_status_header_string =
         translate_string("Status".to_string(), &config.template_references)?;
 
+    // Prepare the string "Approved on DATE" for translation
+    let mut status: String = format!("Approved on DATE");
+    
+    for (key, value) in &config.template_references {
+        if String::from(key) == String::from(&status) {
+            status = String::from(value);
+        }
+    }
+    
+    // Replace the string DATE with today's date
+    let re_date = Regex::new("DATE").unwrap();
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    status = re_date
+        .replace_all(&String::from(&status), today)
+        .parse()
+        .unwrap();
+
     for record in records.split_terminator(',') {
         let record_number: i32 = match record.parse() {
             Ok(num) => num,
@@ -134,13 +151,11 @@ pub fn approve(records: String) -> Result<(), Error> {
         };
 
         let pathbuf_record = find_record(record_number, &config_record_path)?;
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        let approval_line = format!("Approved on {}", today);
 
         inject_text_in_status_block_of_a_record(
             &pathbuf_record,
             &translated_status_header_string,
-            &approval_line,
+            &status,
             true,
             false,
             &[],
@@ -159,6 +174,23 @@ pub fn reject(records: String) -> Result<(), Error> {
     let translated_status_header_string =
         translate_string("Status".to_string(), &config.template_references)?;
 
+    // Prepare the string "Rejected on DATE" for translation
+    let mut status: String = format!("Rejected on DATE");
+    
+    for (key, value) in &config.template_references {
+        if String::from(key) == String::from(&status) {
+            status = String::from(value);
+        }
+    }
+    
+    // Replace the string DATE with today's date
+    let re_date = Regex::new("DATE").unwrap();
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    status = re_date
+        .replace_all(&String::from(&status), today)
+        .parse()
+        .unwrap();
+
     for record in records.split_terminator(',') {
         let record_number: i32 = match record.parse() {
             Ok(num) => num,
@@ -169,13 +201,11 @@ pub fn reject(records: String) -> Result<(), Error> {
         };
 
         let pathbuf_record = find_record(record_number, &config_record_path)?;
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        let rejection_line = format!("Rejected on {}", today);
 
         inject_text_in_status_block_of_a_record(
             &pathbuf_record,
             &translated_status_header_string,
-            &rejection_line,
+            &status,
             true,
             false,
             &[],
@@ -193,6 +223,23 @@ pub fn proposed(records: String) -> Result<(), Error> {
     let translated_status_header_string =
         translate_string("Status".to_string(), &config.template_references)?;
 
+    // Prepare the string "Proposed on DATE" for translation
+    let mut status: String = format!("Proposed on DATE");
+    
+    for (key, value) in &config.template_references {
+        if String::from(key) == String::from(&status) {
+            status = String::from(value);
+        }
+    }
+    
+    // Replace the string DATE with today's date
+    let re_date = Regex::new("DATE").unwrap();
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    status = re_date
+        .replace_all(&String::from(&status), today)
+        .parse()
+        .unwrap();
+
     for record in records.split_terminator(',') {
         let record_number: i32 = match record.parse() {
             Ok(num) => num,
@@ -203,13 +250,11 @@ pub fn proposed(records: String) -> Result<(), Error> {
         };
 
         let pathbuf_record = find_record(record_number, &config_record_path)?;
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        let proposed_line = format!("Proposed on {}", today);
 
         inject_text_in_status_block_of_a_record(
             &pathbuf_record,
             &translated_status_header_string,
-            &proposed_line,
+            &status,
             true,
             false,
             &[],
